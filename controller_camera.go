@@ -161,7 +161,6 @@ func (self *controller) cameraTriggerShake(fadeIn, duration, fadeOut TicksDurati
 	self.cameraStartShake(fadeIn)
 	self.shakeDuration = duration
 	self.shakeFadeOut  = fadeOut // TODO: maybe triggered shakes shouldn't stop pre-existing continuous shakes?
-	Debug().Printfe(1, "shake trigger, in/duration/out => %d, %d, %d | elapsed = %d\n", self.shakeFadeIn, self.shakeDuration, self.shakeFadeOut, self.shakeElapsed)
 }
 
 func (self *controller) cameraIsShaking() bool {
