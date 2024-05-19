@@ -1,0 +1,33 @@
+//kage:unit pixels
+package main
+
+// Notice: this shader is based on the anti-aliased pixel sampling
+//         tutorials from d7samurai, see https://gist.github.com/d7samurai
+
+var SourceRelativeTextureUnitX float
+var SourceRelativeTextureUnitY float
+
+func Fragment(_ vec4, sourceCoords vec2, _ vec4) vec4 {
+	// notice that fwidth is not being used to detect rate of change
+	// between neighbouring fragments, but as a scaling factor
+	sampleCoords := floor(sourceCoords) + min(fract(sourceCoords)/fwidth(sourceCoords), 1.0) - 0.5
+	
+	// bilinear sampling
+	minCoords, maxCoords := getMinMaxSourceCoords()
+	percent := vec2(1.0, 1.0)
+	halfPercent := percent/2.0
+	tl := imageSrc0UnsafeAt(clamp(sampleCoords + vec2(-halfPercent.x, -halfPercent.y), minCoords, maxCoords))
+	tr := imageSrc0UnsafeAt(clamp(sampleCoords + vec2(+halfPercent.x, -halfPercent.y), minCoords, maxCoords))
+	bl := imageSrc0UnsafeAt(clamp(sampleCoords + vec2(-halfPercent.x, +halfPercent.y), minCoords, maxCoords))
+	br := imageSrc0UnsafeAt(clamp(sampleCoords + vec2(+halfPercent.x, +halfPercent.y), minCoords, maxCoords))
+	delta  := min(fract(sampleCoords + vec2(+halfPercent.x, +halfPercent.y)), percent)/percent
+	top    := mix(tl, tr, delta.x)
+	bottom := mix(bl, br, delta.x)
+	return mix(top, bottom, delta.y)
+}
+
+func getMinMaxSourceCoords() (vec2, vec2) {
+	const epsilon = 1.0/65536.0 // TODO: determine how small can we safely set this
+	origin := imageSrc0Origin()
+	return origin, origin + imageSrc0Size() - vec2(epsilon)
+}
