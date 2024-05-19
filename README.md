@@ -1,6 +1,6 @@
 # mipix
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/tinne26/hipix.svg)](https://pkg.go.dev/github.com/tinne26/hipix)
+[![Go Reference](https://pkg.go.dev/badge/github.com/tinne26/mipix.svg)](https://pkg.go.dev/github.com/tinne26/mipix)
 
 **WIP: EARLY DEVELOPMENT STAGES**
 
