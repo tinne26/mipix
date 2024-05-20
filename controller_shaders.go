@@ -24,6 +24,15 @@ var _bicubic []byte
 //go:embed filters/bilinear.kage
 var _bilinear []byte
 
+//go:embed filters/src_hermite.kage
+var _srcHermite []byte
+
+//go:embed filters/src_bicubic.kage
+var _srcBicubic []byte
+
+//go:embed filters/src_bilinear.kage
+var _srcBilinear []byte
+
 var pkgSrcKageFilters [scalingFilterEndSentinel][]byte
 func init() {
 	pkgSrcKageFilters[Nearest] = _nearest
@@ -32,6 +41,9 @@ func init() {
 	pkgSrcKageFilters[Hermite] = _hermite
 	pkgSrcKageFilters[Bicubic] = _bicubic
 	pkgSrcKageFilters[Bilinear] = _bilinear
+	pkgSrcKageFilters[SrcHermite] = _srcHermite
+	pkgSrcKageFilters[SrcBicubic] = _srcBicubic
+	pkgSrcKageFilters[SrcBilinear] = _srcBilinear
 }
 
 func (self *controller) compileShader(filter ScalingFilter) {

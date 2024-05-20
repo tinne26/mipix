@@ -1,0 +1,20 @@
+//kage:unit pixels
+package main
+
+func Fragment(_ vec4, sourceCoords vec2, _ vec4) vec4 {
+	minCoords, maxCoords := getMinMaxSourceCoords()
+	tl := imageSrc0At(clamp(sourceCoords + vec2(-0.5, -0.5), minCoords, maxCoords))
+	tr := imageSrc0At(clamp(sourceCoords + vec2(+0.5, -0.5), minCoords, maxCoords))
+	bl := imageSrc0At(clamp(sourceCoords + vec2(-0.5, +0.5), minCoords, maxCoords))
+	br := imageSrc0At(clamp(sourceCoords + vec2(+0.5, +0.5), minCoords, maxCoords))
+	delta  := fract(sourceCoords + vec2(0.5)) // the fract position of BR is the interpolation point
+	top    := mix(tl, tr, delta.x)
+	bottom := mix(bl, br, delta.x)
+	return mix(top, bottom, delta.y)
+}
+
+func getMinMaxSourceCoords() (vec2, vec2) {
+	const epsilon = 1.0/65536.0 // TODO: determine how small can we safely set this
+	origin := imageSrc0Origin()
+	return origin, origin + imageSrc0Size() - vec2(epsilon)
+}

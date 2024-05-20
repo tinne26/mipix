@@ -1,20 +1,20 @@
 //kage:unit pixels
 package main
 
-// Notice: this shader is based on the anti-aliased pixel sampling
+// Notice: this shader is inspired by the anti-aliased pixel sampling
 //         tutorials from d7samurai, see https://gist.github.com/d7samurai
 
 var SourceRelativeTextureUnitX float
 var SourceRelativeTextureUnitY float
 
 func Fragment(_ vec4, sourceCoords vec2, _ vec4) vec4 {
-	// notice that fwidth is not being used to detect rate of change
-	// between neighbouring fragments, but as a scaling factor
-	sampleCoords := floor(sourceCoords) + smoothstep(0.0, 1.0, fract(sourceCoords)/fwidth(sourceCoords)) - 0.5
+	percent := vec2(SourceRelativeTextureUnitX, SourceRelativeTextureUnitY)
+	sampleCoords := floor(sourceCoords) + smoothstep(0.0, 1.0, fract(sourceCoords)/percent) - 0.5
 	
 	// bilinear sampling
+	const epsilon = 1.0/65536.0 // hack to get rid of artifacts
 	minCoords, maxCoords := getMinMaxSourceCoords()
-	percent := vec2(1.0, 1.0) // we depend on fwidth instead of SourceRelativeTextureUnit uniforms
+	percent = vec2(1.0 - epsilon, 1.0 - epsilon)
 	halfPercent := percent/2.0
 	tl := imageSrc0UnsafeAt(clamp(sampleCoords + vec2(-halfPercent.x, -halfPercent.y), minCoords, maxCoords))
 	tr := imageSrc0UnsafeAt(clamp(sampleCoords + vec2(+halfPercent.x, -halfPercent.y), minCoords, maxCoords))

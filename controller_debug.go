@@ -51,16 +51,11 @@ func (self *controller) debugDrawAll(target *ebiten.Image) {
 		}
 	}
 
-	// draw info to offscreen
+	// draw info to offscreen and project
 	for i, info := range self.debugInfo {
 		ebitenutil.DebugPrintAt(self.debugOffscreen.Target(), info, 1, 1 + i*12)
 	}
-
-	// project using hermite filter
-	preFilter := self.scalingFilter
-	self.scalingFilter = Hermite
 	self.debugOffscreen.Project(target)
-	self.scalingFilter = preFilter
 
 	// clear debug info
 	self.debugInfo = self.debugInfo[ : 0]

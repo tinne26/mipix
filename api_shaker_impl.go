@@ -14,6 +14,11 @@ type SimpleShaker struct {
 	progress float64
 }
 
+// Sets the maximum horizontal and vertical range of the shaker.
+//
+// As an example, when no shaker is set mipix initializes a
+// SimpleShaker with a range of 1/80 of the shortest axis of
+// the logical resolution.
 func (self *SimpleShaker) SetRange(horz, vert float64) {
 	self.horzRange, self.vertRange = horz, vert
 }

@@ -13,8 +13,8 @@ func Camera() AccessorCamera { return AccessorCamera{} }
 // --- tracking ---
 
 // Trackers are an interface used for updating the camera position.
-// Given current and target coordinates, the tracker must return
-// the advance for a single frame.
+// Given current and target coordinates, a tracker must return
+// the advance for a single update.
 //
 // Related to [AccessorCamera.SetTracker]().
 type Tracker interface {
@@ -44,7 +44,8 @@ func (AccessorCamera) NotifyCoordinates(x, y float64) {
 	pkgController.cameraNotifyCoordinates(x, y)
 }
 
-// Immediately resets the camera target coordinates.
+// Immediately resets the camera coordinates.
+// Commonly used when changing scenes or maps.
 func (AccessorCamera) ResetCoordinates(x, y float64) {
 	pkgController.cameraResetCoordinates(x, y)
 }
@@ -56,7 +57,7 @@ func (AccessorCamera) ResetCoordinates(x, y float64) {
 //
 // Notice that only one camera update can happen per tick,
 // so the automatic camera update will be skipped if you
-// call FlushCoordinates manually during [Game].Update(). 
+// flush coordinates manually during [Game].Update(). 
 // Calling this method multiple times during the same update 
 // will only update coordinates on the first invocation.
 //
@@ -81,6 +82,9 @@ func (AccessorCamera) Area() image.Rectangle {
 	return pkgController.cameraAreaGet()
 }
 
+// Similar to [AccessorCamera.Area](), but without rounding up
+// the coordinates and returning the exact values. This is rarely
+// necessary in practice outside debugging.
 func (AccessorCamera) AreaF64() (minX, minY, maxX, maxY float64) {
 	return pkgController.cameraAreaF64()
 }
@@ -108,18 +112,28 @@ func (AccessorCamera) GetZoom() (current, target float64) {
 	return pkgController.cameraGetZoom()
 }
 
-// TODO: unimplemented. Will panic and make you regret everything.
+// TODO: interpolator for camera would be better, without so many problems
+// for smoothing and so on. There are too many different use-cases and
+// in-between switching and so on.
+
+// When zoom levels are changed in the middle of another zoom transition,
+// the sudden swing can result unpleasant. This is why the camera has
+// zoom swing smoothing enabled by default, making the current zoom
+// transition reduce speed quickly before turning towards the other
+// direction. This can add some extra ticks to zoom transitions, but
+// generally leads to more natural results.
 //
-// Notes: this should be enabled by default I think?
-func (AccessorCamera) SetZoomSwingSmoothingEnabled(enabled bool) {
-	panic("unimplemented")
-}
+// This function allows you to turn off/on this feature.
+// func (AccessorCamera) SmoothZoomSwings(smooth bool) {
+// 	pkgController.cameraSmoothZoomSwings(smooth)
+// }
 
 // --- screen shaking ---
 
-// Shakers are an interface used to implement screenshakes.
-// Given a level between 0 and 1, returns the offsets for
-// the camera.
+// Shakers are an interface used to implement screen shakes.
+// Given a level that transitions linearly between 0 and 1
+// during the fade in and fade out stages, GetShakeOffsets()
+// returns the logical offsets for the camera.
 // 
 // Related to [AccessorCamera.SetShaker](). See [SimpleShaker]
 // for a default implementation.
@@ -127,39 +141,42 @@ type Shaker interface {
 	GetShakeOffsets(level float64) (float64, float64)
 }
 
-// Returns the current shaker. See [AccessorCamera.SetShaker]()
-// for more details.
+// Returns the current screen shaker interface.
+// See [AccessorCamera.SetShaker]() for more details.
 func (AccessorCamera) GetShaker() Shaker {
 	return pkgController.cameraGetShaker()
 }
 
-// Sets a shaker. By default the shaker is nil, and
-// shakes are handled by a fallback [SimpleShaker].
+// Sets a shaker. By default the screen shaker interface is
+// nil, and shakes are handled by a fallback [SimpleShaker].
 func (AccessorCamera) SetShaker(shaker Shaker) {
 	pkgController.cameraSetShaker(shaker)
 }
 
-// Starts a screenshake. The screenshake will remain active
-// indefinitely, you must use [AccessorCamera.EndShake]()
+// Starts a screen shake. The screen will continue shaking
+// indefinitely; you must use [AccessorCamera.EndShake]()
 // to stop it again.
 func (AccessorCamera) StartShake(fadeIn TicksDuration) {
 	pkgController.cameraStartShake(fadeIn)
 }
 
-// Stop a screenshake. This can be even used to fade out
-// triggered shakes earlier, or to ensure that no shakes
+// Stop a screen shake. This can even be used to fade out
+// triggered shakes early, or to ensure that no shakes
 // remain active after screen transitions or others.
 func (AccessorCamera) EndShake(fadeOut TicksDuration) {
 	pkgController.cameraEndShake(fadeOut)
 }
 
-// Returns whether screenshaking is active.
+// Returns whether any screen shaking is happening.
 func (AccessorCamera) IsShaking() bool {
 	return pkgController.cameraIsShaking()
 }
 
-// Trigger a screenshake with specific fade in, duration and
+// Triggers a screenshake with specific fade in, duration and
 // fade out tick durations.
+//
+// TODO: mention if this overrides previously active shakes,
+// or resets anything or whatever.
 func (AccessorCamera) TriggerShake(fadeIn, duration, fadeOut TicksDuration) {
 	pkgController.cameraTriggerShake(fadeIn, duration, fadeOut)
 }

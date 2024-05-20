@@ -71,12 +71,33 @@ func (self *controller) updateTracking() {
 
 func (self *controller) updateZoom() {
 	if self.zoomTransitionElapsed >= self.zoomTransitionDuration {
-		self.zoomCurrent = self.zoomTarget
-		self.zoomStart = self.zoomTarget
+		self.zoomPrevious = self.zoomTarget
+		self.zoomCurrent  = self.zoomTarget
+		self.zoomStart    = self.zoomTarget
 	} else {
-		t := float64(self.zoomTransitionElapsed)/float64(self.zoomTransitionDuration)
-		self.zoomCurrent = quadInterp(self.zoomStart, self.zoomTarget, t) // TODO: make customizable? quad is nice though
-		self.zoomTransitionElapsed += 1
+		if self.zoomSmoothSwings && self.zoomChangingDir() { // smooth swing case
+			change := (self.zoomCurrent - self.zoomPrevious)*0.93
+			self.zoomPrevious = self.zoomCurrent
+			self.zoomCurrent += change
+			if abs(change) < 0.01 {
+				self.zoomStart = self.zoomCurrent
+				self.zoomPrevious = self.zoomCurrent
+			}
+		} else {
+			t := float64(self.zoomTransitionElapsed)/float64(self.zoomTransitionDuration)
+			self.zoomPrevious = self.zoomCurrent
+			self.zoomCurrent = quadInterp(self.zoomStart, self.zoomTarget, t) // TODO: make customizable? quad is nice though
+			self.zoomTransitionElapsed += 1
+		}
+	}
+}
+
+func (self *controller) zoomChangingDir() bool {
+	switch {
+	case self.zoomPrevious < self.zoomCurrent: return self.zoomTarget < self.zoomPrevious
+	case self.zoomPrevious > self.zoomCurrent: return self.zoomTarget > self.zoomPrevious
+	default:
+		return false
 	}
 }
 
@@ -100,9 +121,10 @@ func (self *controller) cameraZoom(newZoomLevel float64, transition TicksDuratio
 	if newZoomLevel <= 0.0 { panic("can't zoom <= 0.0") }
 
 	if transition == ZeroTicks {
-		self.zoomCurrent = newZoomLevel
-		self.zoomStart   = newZoomLevel
-		self.zoomTarget  = newZoomLevel
+		self.zoomPrevious = newZoomLevel
+		self.zoomCurrent  = newZoomLevel
+		self.zoomStart    = newZoomLevel
+		self.zoomTarget   = newZoomLevel
 	} else {
 		self.zoomStart  = self.zoomCurrent
 		self.zoomTarget = newZoomLevel
@@ -112,15 +134,14 @@ func (self *controller) cameraZoom(newZoomLevel float64, transition TicksDuratio
 }
 
 func (self *controller) cameraZoomFrom(ifZoom, newZoomLevel float64, transition TicksDuration) {
-	referenceDist := newZoomLevel - ifZoom
+	referenceDist := abs(newZoomLevel - ifZoom)
 	if referenceDist == 0 { self.cameraZoom(newZoomLevel, 0) ; return }
-	if referenceDist < 0 { referenceDist = -referenceDist }
-	actualDist := newZoomLevel - self.zoomCurrent
+	actualDist := abs(newZoomLevel - self.zoomCurrent)
 	if actualDist == 0 { self.cameraZoom(newZoomLevel, 0) ; return }
-	if actualDist < 0 { actualDist = -actualDist }
-	relativeTransition := float64(transition)*(actualDist/referenceDist)
-	// TODO: swing smoothing
-	self.cameraZoom(newZoomLevel, TicksDuration(relativeTransition))
+	relativePercent := (actualDist/referenceDist)
+	relativeTransition := float64(transition)*relativePercent
+	compensatoryTicks := max(0, (0.3 - relativePercent)*44) // hacks. 44 should be based on transition...
+	self.cameraZoom(newZoomLevel, TicksDuration(relativeTransition + compensatoryTicks))
 }
 
 func (self *controller) cameraGetZoom() (current, target float64) {

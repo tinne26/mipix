@@ -1,0 +1,30 @@
+//kage:unit pixels
+package main
+
+func Fragment(_ vec4, sourceCoords vec2, _ vec4) vec4 {
+	minCoords, maxCoords := getMinMaxSourceCoords()
+	delta := fract(sourceCoords + vec2(0.5))
+	a := cubicRow(sourceCoords - vec2(0, 1.5), delta.x, minCoords, maxCoords)
+	b := cubicRow(sourceCoords - vec2(0, 0.5), delta.x, minCoords, maxCoords)
+	c := cubicRow(sourceCoords + vec2(0, 0.5), delta.x, minCoords, maxCoords)
+	d := cubicRow(sourceCoords + vec2(0, 1.5), delta.x, minCoords, maxCoords)
+	return cubicInterp(delta.y, a, b, c, d)
+}
+
+func cubicRow(coords vec2, delta float, minCoords, maxCoords vec2) vec4 {
+	a := imageSrc0At(clamp(coords - vec2(1.5, 0), minCoords, maxCoords))
+	b := imageSrc0At(clamp(coords - vec2(0.5, 0), minCoords, maxCoords))
+	c := imageSrc0At(clamp(coords + vec2(0.5, 0), minCoords, maxCoords))
+	d := imageSrc0At(clamp(coords + vec2(1.5, 0), minCoords, maxCoords))
+	return cubicInterp(delta, a, b, c, d)
+}
+
+func cubicInterp(x float, a, b, c, d vec4) vec4 {
+	return (-0.5*a + 1.5*b - 1.5*c + 0.5*d)*(x*x*x) + (a - 2.5*b + 2.0*c - 0.5*d)*(x*x) + (-0.5*a + 0.5*c)*x + b
+}
+
+func getMinMaxSourceCoords() (vec2, vec2) {
+	const epsilon = 1.0/65536.0 // TODO: determine how small can we safely set this
+	origin := imageSrc0Origin()
+	return origin, origin + imageSrc0Size() - vec2(epsilon)
+}

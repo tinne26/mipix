@@ -3,8 +3,8 @@ package mipix
 // import "github.com/hajimehoshi/ebiten/v2"
 
 var (
-	FrozenTracker  Tracker = frozenTracker{}
-	InstantTracker Tracker = instantTracker{}
+	FrozenTracker  Tracker = frozenTracker{}  // Update(...) always returns (0, 0)
+	InstantTracker Tracker = instantTracker{} // Update(...) always returns (target - current)
 	LinearTracker  Tracker = linearTracker{}
 )
 

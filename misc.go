@@ -16,6 +16,7 @@ func SubImage(source *ebiten.Image, minX, minY, maxX, maxY int) *ebiten.Image {
 	return source.SubImage(image.Rect(minX, minY, maxX, maxY)).(*ebiten.Image)
 }
 
+// Quick alias to the control key for use with [AccessorDebug.Printfk]().
 const Ctrl = ebiten.KeyControl
 
 // --- private use ---
@@ -26,6 +27,11 @@ func clamp[T cmp.Ordered](x, a, b T) T {
 	if x <= a { return a }
 	if x >= b { return b }
 	return x
+}
+
+func abs[T float64 | float32 | int | int8 | int16 | int32 | int64](x T) T {
+	if x >= 0 { return x }
+	return -x
 }
 
 var pkgMask1x1 *ebiten.Image

@@ -1,6 +1,10 @@
 package mipix
 
+import "fmt"
+
 import "github.com/hajimehoshi/ebiten/v2"
+
+var _ fmt.Formatter
 
 // --- game ---
 
@@ -68,13 +72,14 @@ func QueueHiResDraw(handler func(viewport, target *ebiten.Image)) {
 	pkgController.queueHiResDraw(handler)
 }
 
-// Advanced feature, only relevant if you need to redraw the game
-// borders manually and economically, which is rather uncommon.
-//
 // Returns whether a layout change has happened on the current tick.
 // Layout changes happen whenever the game window is resized in windowed
 // mode, the game switches between windowed and fullscreen modes, or
 // the device scale factor changes (possibly due to a monitor change).
+//
+// This function is relevant if you need to redraw game borders manually
+// and efficiently, or if you are only redrawing the screen when
+// something changes.
 func LayoutHasChanged() bool {
 	return pkgController.layoutHasChanged
 }
@@ -90,7 +95,21 @@ type AccessorHiRes struct{}
 func HiRes() AccessorHiRes { return AccessorHiRes{} }
 
 // Draws the given source into the target at the given logical coordinates.
-// These logical coordinates have the camera origin subtracted automatically.
+// These logical coordinates have the camera origin automatically subtracted.
+//
+// Notice that mipix's main focus is not high resolution drawing, and this
+// method is not expected to be used more than a dozen times per frame.
+// If you are only drawing the main character or a few entities at floating
+// point positions, using this method should be fine. If you are trying to
+// draw every element of your game with this, or relying on this for a
+// particle system, you are misusing mipix.
+//
+// Many more high resolution drawing features could be provided, and some
+// might be added in the future, but this is not the main goal of the project.
+//
+// All that being said, this is not a recommendation to avoid this method.
+// This method is perfectly functional and a very practical tool in many
+// scenarios.
 func (self AccessorHiRes) Draw(target, source *ebiten.Image, x, y float64) {
 	pkgController.hiResDraw(target, source, x, y)
 }
@@ -130,19 +149,33 @@ const (
 	// will be really jumpy and ugly.
 	Nearest
 
-	// Slightly blurrier than AASamplingSoft, but still slightly more unstable
-	// than AASamplingSharp. Most reasonable results, at reasonable performance,
-	// if we were to ignore the anti-aliased pixel art point sampling filters.
+	// Slightly blurrier than AASamplingSoft and more unstable than
+	// AASamplingSharp. Still provides fairly decent results at
+	// reasonable performance.
 	Hermite
 
-	// Smooth filter. Often too smooth for pixel art. As additional downsides,
-	// bicubic filtering can misrepresent values throughout high contrast
-	// transitions, and it's the most expensive filter by quite a lot. Not
-	// very sharp, but decently stable.
+	// The most expensive filter by quite a lot. Slightly less sharp than
+	// Hermite, but quite a bit more stable. Might slightly misrepresent
+	// some colors throughout high contrast areas.
 	Bicubic
 
-	// Offered mostly for comparison purposes. Not very sharp, but decently stable.
+	// Offered mostly for comparison purposes. Slightly blurrier than
+	// Hermite, but quite a bit more stable.
 	Bilinear
+
+	// Offered for comparison purposes only. Non high-resolution aware
+	// scaling filter, more similar to what naive scaling will look like.
+	SrcHermite
+
+	// Offered for comparison purposes only. Non high-resolution aware
+	// scaling filter, more similar to what naive scaling will look like.
+	SrcBicubic
+
+	// Offered for comparison purposes only. Non high-resolution aware
+	// scaling filter, more similar to what naive scaling will look like.
+	// This is what Ebitengine will do by default with the FilterLinear
+	// filter.
+	SrcBilinear
 
 	scalingFilterEndSentinel
 )
@@ -156,6 +189,9 @@ func (self ScalingFilter) String() string {
 	case Hermite  : return "Hermite"
 	case Bicubic  : return "Bicubic"
 	case Bilinear : return "Bilinear"
+	case SrcHermite  : return "SrcHermite"
+	case SrcBicubic  : return "SrcBicubic"
+	case SrcBilinear : return "SrcBilinear"
 	default:
 		panic("invalid ScalingFilter")
 	}
@@ -230,29 +266,30 @@ func Debug() AccessorDebug { return AccessorDebug{} }
 // left of the screen instead. Multi-line text is not supported,
 // use multiple Drawf commands in sequence instead.
 //
-// Calls to this function outside the draw stage are ignored.
+// You can call this function at any point, even during [Game].Update.
+// Strings will be queued and rendered at the end of the next draw.
 func (AccessorDebug) Drawf(format string, args ...any) {
 	pkgController.debugDrawf(format, args...)
 }
 
-// Similar to fmt.Printf, but expects two tick counts as the first
+// Similar to [fmt.Printf](), but expects two tick counts as the first
 // arguments. The function will only print during the period elapsed
 // between those two tick counts.
 // Some examples:
-//   mipix.Debug().Printfr(0, 0, "only print on the first tick")
-//   mipix.Debug().Printfr()
+//   mipix.Debug().Printfr(0, 0, "only print on the first tick\n")
+//   mipix.Debug().Printfr(180, 300, "print from 3s to 5s lapse\n")
 func (AccessorDebug) Printfr(firstTick, lastTick uint64, format string, args ...any) {
 	pkgController.debugPrintfr(firstTick, lastTick, format, args...)
 }
 
-// Similar to fmt.Printf, but only prints every N ticks, where N
+// Similar to [fmt.Printf](), but only prints every N ticks, where N
 // is given as 'everyNTicks'. For example, in most games, using 
 // N = 60 will lead to print once every 60 ticks. 61 is prime.
 func (AccessorDebug) Printfe(everyNTicks uint64, format string, args ...any) {
 	pkgController.debugPrintfe(everyNTicks, format, args...)
 }
 
-// Similar to fmt.Printf, but only prints if the given key is pressed.
+// Similar to [fmt.Printf](), but only prints if the given key is pressed.
 // Common keys: [ebiten.KeyShiftLeft], [ebiten.KeyControl], [ebiten.KeyDigit1].
 func (AccessorDebug) Printfk(key ebiten.Key, format string, args ...any) {
 	pkgController.debugPrintfk(key, format, args...)
@@ -263,7 +300,7 @@ func (AccessorDebug) Printfk(key ebiten.Key, format string, args ...any) {
 // See [Tick]().
 type AccessorTick struct{}
 
-// Provides access to game ticks operations in a structured
+// Provides access to game tick functions in a structured
 // manner. Use through method chaining, e.g.:
 //   currentTick := mipix.Tick().Now()
 func Tick() AccessorTick { return AccessorTick{} }
@@ -282,8 +319,9 @@ func (AccessorTick) Now() uint64 {
 // reproduced with 120TPS (by advancing the internal clock by 2
 // ticks on each update instead of 1), or 60TPS (advance by 4
 // instead of 1). With some care, this allows games to preserve
-// a perfectly determinist logic while providing players a
-// smoother or more responsive experience.
+// a perfectly determinist logic while providing players with 
+// high refresh rate displays a smoother or more responsive
+// experience.
 //
 // This is not necessary, relevant or appropriate for every game.
 // This is not necessary, relevant or appropriate for every player.

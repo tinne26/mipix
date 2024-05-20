@@ -11,6 +11,7 @@ func init() {
 	pkgController.zoomTarget = 1.0
 	pkgController.zoomStart = 1.0
 	pkgController.tickRate = 1
+	pkgController.zoomSmoothSwings = true
 	pkgController.lastFlushCoordinatesTick = 0xFFFF_FFFF_FFFF_FFFF
 }
 
@@ -27,6 +28,7 @@ type controller struct {
 	prevHiResCanvasHeight int // used to update layoutHasChanged even on unexpected cases
 	layoutHasChanged bool
 	inDraw bool
+	zoomSmoothSwings bool
 	stretchingEnabled bool
 	scalingFilter ScalingFilter
 	// * https://github.com/hajimehoshi/ebiten/issues/2978
@@ -49,6 +51,7 @@ type controller struct {
 	zoomTransitionDuration TicksDuration
 	zoomCurrent float64
 	zoomStart float64
+	zoomPrevious float64
 	zoomTarget float64
 
 	// shake
@@ -258,61 +261,15 @@ func (self *controller) scalingGetStretchingAllowed() bool {
 
 func (self *controller) hiResDraw(target, source *ebiten.Image, x, y float64) {
 	if !self.inDraw { panic("can't mipix.HiRes().Draw() outside draw stage") }
-
-	// view culling
-	camMinX, camMinY, camMaxX, camMaxY := self.cameraAreaF64() // TODO: this is wasteful per draw
-	if x > camMaxX || y > camMaxY { return }
-	sourceBounds := source.Bounds()
-	sourceWidth, sourceHeight := float64(sourceBounds.Dx()), float64(sourceBounds.Dy())
-	if x + sourceWidth  < camMinX { return } // outside view
-	if y + sourceHeight < camMinY { return } // outside view
-
-	// compile shader if necessary
-	if self.shaders[self.scalingFilter] == nil {
-		self.compileShader(self.scalingFilter)
-	}
-
-	// set triangle vertex coordinates
-	targetBounds := target.Bounds()
-	targetMinX , targetMinY   := float64(targetBounds.Min.X), float64(targetBounds.Min.Y)
-	targetWidth, targetHeight := float64(targetBounds.Dx()), float64(targetBounds.Dy())
-	xFactor := self.zoomCurrent*targetWidth/float64(self.logicalWidth)
-	yFactor := self.zoomCurrent*targetHeight/float64(self.logicalHeight)
-	srcProjMinX := (x - camMinX)*xFactor
-	srcProjMinY := (y - camMinY)*yFactor
-	srcProjMaxX := srcProjMinX + sourceWidth*xFactor
-	srcProjMaxY := srcProjMinY + sourceHeight*yFactor
-	self.shaderVertices[0].DstX = float32(targetMinX + srcProjMinX)
-	self.shaderVertices[0].DstY = float32(targetMinY + srcProjMinY)
-	self.shaderVertices[1].DstX = float32(targetMinX + srcProjMaxX)
-	self.shaderVertices[1].DstY = self.shaderVertices[0].DstY
-	self.shaderVertices[2].DstX = self.shaderVertices[1].DstX
-	self.shaderVertices[2].DstY = float32(targetMinY + srcProjMaxY)
-	self.shaderVertices[3].DstX = self.shaderVertices[0].DstX
-	self.shaderVertices[3].DstY = self.shaderVertices[2].DstY
-
-	self.shaderVertices[0].SrcX = float32(sourceBounds.Min.X)
-	self.shaderVertices[0].SrcY = float32(sourceBounds.Min.Y)
-	self.shaderVertices[1].SrcX = float32(sourceBounds.Max.X)
-	self.shaderVertices[1].SrcY = self.shaderVertices[0].SrcY
-	self.shaderVertices[2].SrcX = self.shaderVertices[1].SrcX
-	self.shaderVertices[2].SrcY = float32(sourceBounds.Max.Y)
-	self.shaderVertices[3].SrcX = self.shaderVertices[0].SrcX
-	self.shaderVertices[3].SrcY = self.shaderVertices[2].SrcY
-
-	self.shaderOpts.Images[0] = source
-	self.shaderOpts.Uniforms["SourceRelativeTextureUnitX"] = float32(float64(self.logicalWidth)/targetWidth)
-	self.shaderOpts.Uniforms["SourceRelativeTextureUnitY"] = float32(float64(self.logicalHeight)/targetHeight)
-	target.DrawTrianglesShader(
-		self.shaderVertices, self.shaderVertIndices,
-		self.shaders[self.scalingFilter], &self.shaderOpts,
-	)
-	self.shaderOpts.Images[0] = nil
+	self.internalHiResDraw(target, source, x, y, false)
 }
 
 func (self *controller) hiResDrawHorzFlip(target, source *ebiten.Image, x, y float64) {
-	if !self.inDraw { panic("can't mipix.HiRes().Draw() outside draw stage") }
+	if !self.inDraw { panic("can't mipix.HiRes().DrawHorzFlip() outside draw stage") }
+	self.internalHiResDraw(target, source, x, y, true)
+}
 
+func (self *controller) internalHiResDraw(target, source *ebiten.Image, x, y float64, horzFlip bool) {
 	// view culling
 	camMinX, camMinY, camMaxX, camMaxY := self.cameraAreaF64() // TODO: this is per draw
 	if x > camMaxX || y > camMaxY { return }
@@ -336,15 +293,17 @@ func (self *controller) hiResDrawHorzFlip(target, source *ebiten.Image, x, y flo
 	srcProjMinY := (y - camMinY)*yFactor
 	srcProjMaxX := srcProjMinX + sourceWidth*xFactor
 	srcProjMaxY := srcProjMinY + sourceHeight*yFactor
-	self.shaderVertices[0].DstX = float32(targetMinX + srcProjMaxX)
+	left, right := float32(targetMinX + srcProjMinX), float32(targetMinX + srcProjMaxX)
+	if horzFlip { left, right = right, left }
+	self.shaderVertices[0].DstX = left
 	self.shaderVertices[0].DstY = float32(targetMinY + srcProjMinY)
-	self.shaderVertices[1].DstX = float32(targetMinX + srcProjMinX)
+	self.shaderVertices[1].DstX = right
 	self.shaderVertices[1].DstY = self.shaderVertices[0].DstY
 	self.shaderVertices[2].DstX = self.shaderVertices[1].DstX
 	self.shaderVertices[2].DstY = float32(targetMinY + srcProjMaxY)
 	self.shaderVertices[3].DstX = self.shaderVertices[0].DstX
 	self.shaderVertices[3].DstY = self.shaderVertices[2].DstY
-	
+
 	self.shaderVertices[0].SrcX = float32(sourceBounds.Min.X)
 	self.shaderVertices[0].SrcY = float32(sourceBounds.Min.Y)
 	self.shaderVertices[1].SrcX = float32(sourceBounds.Max.X)
