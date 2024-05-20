@@ -23,6 +23,10 @@ This package implements the second model described on [lopix](https://github.com
 
 While side scrollers can be implemented with this model, that's probably not ideal. In most side-scrollers, developers use floating point positions for characters, which are smoothly "sliding through the floor" as animations change. Doing this requires drawing the characters on a high resolution canvas. The API offers basic support for this, but it's not the main focus of the package. If you have *many* fractionally positioned characters and elements, the `mipix` model might not be the best match.
 
+## Code example
+
+I haven't written examples oriented to end users yet, the only examples available are a bit overkill as they were designed to help me debug and test features. See [https://github.com/tinne26/lopix-examples].
+
 ## WIP status
 
 - Unimplemented: SpringTracker, moaar trackers and shakers and gen-zers and so on.
