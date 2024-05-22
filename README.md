@@ -25,7 +25,7 @@ While side scrollers can be implemented with this model, that's probably not ide
 
 ## Code example
 
-I haven't written examples oriented to end users yet, the only examples available are a bit overkill as they were designed to help me debug and test features. See https://github.com/tinne26/lopix-examples.
+I haven't written examples oriented to end users yet, the only examples available are a bit overkill as they were designed to help me debug and test features. See https://github.com/tinne26/mipix-examples.
 
 ## WIP status
 
