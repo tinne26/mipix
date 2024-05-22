@@ -78,8 +78,8 @@ func QueueHiResDraw(handler func(viewport, target *ebiten.Image)) {
 // the device scale factor changes (possibly due to a monitor change).
 //
 // This function is relevant if you need to redraw game borders manually
-// and efficiently, or if you are only redrawing the screen when
-// something changes.
+// and efficiently or resize offscreens. Layout changes are also automatically
+// taken into account if you have [AccessorRedraw.SetManaged](true).
 func LayoutHasChanged() bool {
 	return pkgController.layoutHasChanged
 }
@@ -308,6 +308,30 @@ func Tick() AccessorTick { return AccessorTick{} }
 // Returns the current tick.
 func (AccessorTick) Now() uint64 {
 	return pkgController.tickNow()
+}
+
+// Returns the updates per second. This is ebiten.TPS(),
+// but mipix considers a more advanced model for ticks
+// and updates.
+//
+// The update delta, or "time you should be simulating
+// during an update", is 1.0/float64(Tick().UPS()). In
+// general it's preferable to work directly with ticks
+// if you want to keep you game logic deterministic, but
+// there are many situations where you either don't care
+// about determinism, or calculations will only affect
+// visual elements, like the camera position and similar,
+// that wouldn't affect the core state of your game
+// anyways and you want to simulate smoothly.
+func (AccessorTick) UPS() int {
+	return ebiten.TPS()
+}
+
+// Returns the ticks per second. This is UPS()*TickRate.
+// Notice that this is not ebiten.TPS(), as mipix considers
+// a more advanced model for ticks and updates.
+func (AccessorTick) TPS() int {
+	return ebiten.TPS()*int(pkgController.tickRate)
 }
 
 // An advanced mechanism to improve support for high refresh

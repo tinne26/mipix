@@ -34,6 +34,53 @@ func abs[T float64 | float32 | int | int8 | int16 | int32 | int64](x T) T {
 	return -x
 }
 
+// --- color ---
+
+func toRGBAf32(clr color.Color) (r, g, b, a float32) {
+	r16, g16, b16, a16 := clr.RGBA()
+	return float32(r16)/65535.0, float32(g16)/65535.0, float32(b16)/65535.0, float32(a16)/65535.0
+}
+
+// --- interpolation ---
+
+func tAt(x, a, b float64) float64 {
+	if x <= a { return 0.0 }
+	if x >= b { return 1.0 }
+	return (x - a)/(b - a)
+}
+
+func linearInterp(a, b, t float64) float64 { return (a + (b - a)*t) }
+func smoothInterp(a, b, t float64) float64 { // related: https://iquilezles.org/articles/smoothsteps
+	t = clamp(t, 0, 1)
+	return linearInterp(a, b, t*t*(3.0 - 2.0*t))
+}
+func quadInterp(a, b, t float64) float64 {
+	return linearInterp(a, b, quadInOut(t))
+}
+func quadInOut(t float64) float64 {
+	t = clamp(t, 0, 1)
+	if t < 0.5 { return 2*t*t }
+	t = 2*t - 1
+	return -0.5*(t*(t - 2) - 1)
+}
+
+func quadDvInOut(t float64) float64 {
+	t = clamp(t, 0, 1)
+	if t <= 0.5 { return 4*t }
+	return 4 - 4*t
+}
+
+func cubicOutInterp(a, b, t float64) float64 {
+	return linearInterp(a, b, easeOutCubic(t))
+}
+func easeOutCubic(t float64) float64 {
+	t = clamp(t, 0, 1)
+	omt := 1 - t
+	return 1 - omt*omt*omt
+}
+
+// --- triangles drawing ---
+
 var pkgMask1x1 *ebiten.Image
 var pkgFillVertices []ebiten.Vertex
 var pkgFillVertIndices []uint16
@@ -74,9 +121,4 @@ func fillOverRect(target *ebiten.Image, bounds image.Rectangle, fillColor color.
 	pkgFillVertices[3].DstX = minX
 	pkgFillVertices[3].DstY = maxY
 	target.DrawTriangles(pkgFillVertices, pkgFillVertIndices, pkgMask1x1, &pkgFillTrianglesOpts)
-}
-
-func toRGBAf32(clr color.Color) (r, g, b, a float32) {
-	r16, g16, b16, a16 := clr.RGBA()
-	return float32(r16)/65535.0, float32(g16)/65535.0, float32(b16)/65535.0, float32(a16)/65535.0
 }

@@ -42,6 +42,9 @@ func (self *controller) cameraNotifyCoordinates(x, y float64) {
 func (self *controller) cameraResetCoordinates(x, y float64) {
 	if self.inDraw { panic("can't reset camera coordinates during draw stage") }
 	self.trackerTargetX , self.trackerTargetY  = x, y
+	if self.redrawManaged && (x != self.trackerCurrentX || y != self.trackerCurrentY) {
+		self.needsRedraw = true
+	}
 	self.trackerCurrentX, self.trackerCurrentY = x, y
 	self.updateCameraArea()
 }
@@ -57,7 +60,7 @@ func (self *controller) cameraFlushCoordinates() {
 
 func (self *controller) updateTracking() {
 	var tracker Tracker = self.tracker
-	if tracker == nil { tracker = InstantTracker } // could use linear/default tracker with 0.1 to 8 speed limits
+	if tracker == nil { tracker = LinearTracker }
 	self.trackerPrevSpeedX, self.trackerPrevSpeedY = tracker.Update(
 		self.trackerCurrentX, self.trackerCurrentY,
 		self.trackerTargetX, self.trackerTargetY,
@@ -65,83 +68,70 @@ func (self *controller) updateTracking() {
 	)
 	self.trackerCurrentX += self.trackerPrevSpeedX
 	self.trackerCurrentY += self.trackerPrevSpeedY
+	
+	if self.redrawManaged && (self.trackerPrevSpeedX != 0 || self.trackerPrevSpeedY != 0) {
+		self.needsRedraw = true
+	}
 }
 
 // --- zoom ---
 
 func (self *controller) updateZoom() {
-	if self.zoomTransitionElapsed >= self.zoomTransitionDuration {
-		self.zoomPrevious = self.zoomTarget
-		self.zoomCurrent  = self.zoomTarget
-		self.zoomStart    = self.zoomTarget
-	} else {
-		if self.zoomSmoothSwings && self.zoomChangingDir() { // smooth swing case
-			change := (self.zoomCurrent - self.zoomPrevious)*0.93
-			self.zoomPrevious = self.zoomCurrent
-			self.zoomCurrent += change
-			if abs(change) < 0.01 {
-				self.zoomStart = self.zoomCurrent
-				self.zoomPrevious = self.zoomCurrent
-			}
-		} else {
-			t := float64(self.zoomTransitionElapsed)/float64(self.zoomTransitionDuration)
-			self.zoomPrevious = self.zoomCurrent
-			self.zoomCurrent = quadInterp(self.zoomStart, self.zoomTarget, t) // TODO: make customizable? quad is nice though
-			self.zoomTransitionElapsed += 1
-		}
+	zoomer := self.cameraGetInternalZoomer()
+	change := zoomer.Update(self.zoomCurrent, self.zoomTarget)
+	self.zoomCurrent += change
+	
+	if self.redrawManaged && change != 0 {
+		self.needsRedraw = true
 	}
 }
 
-func (self *controller) zoomChangingDir() bool {
-	switch {
-	case self.zoomPrevious < self.zoomCurrent: return self.zoomTarget < self.zoomPrevious
-	case self.zoomPrevious > self.zoomCurrent: return self.zoomTarget > self.zoomPrevious
-	default:
-		return false
+func (self *controller) cameraGetInternalZoomer() Zoomer {
+	if self.zoomer != nil { return self.zoomer }
+	if defaultSimpleZoomer == nil {
+		defaultSimpleZoomer = &SimpleZoomer{}
+		defaultSimpleZoomer.Reset()
 	}
+	return defaultSimpleZoomer
 }
 
 func (self *controller) updateShake() {
 	if !self.cameraIsShaking() { return }
 	var shaker Shaker = self.shaker
 	if shaker == nil {
-		shortSide := min(self.logicalWidth, self.logicalHeight)
-		shakeRange := float64(shortSide)/80.0
-		defaultSimpleShaker.SetRange(shakeRange, shakeRange)
-		defaultSimpleShaker.rollNewTarget()
+		if defaultSimpleShaker == nil {
+			defaultSimpleShaker = &SimpleShaker{}
+			defaultSimpleShaker.rollNewTarget()
+		}
 		shaker = defaultSimpleShaker
 	}
 	activity := self.getShakeActivity()
-	self.shakeOffsetX, self.shakeOffsetY = shaker.GetShakeOffsets(activity)
-	self.shakeElapsed += 1
-}
-
-func (self *controller) cameraZoom(newZoomLevel float64, transition TicksDuration) {
-	if self.inDraw { panic("can't zoom during draw stage") }
-	if newZoomLevel <= 0.0 { panic("can't zoom <= 0.0") }
-
-	if transition == ZeroTicks {
-		self.zoomPrevious = newZoomLevel
-		self.zoomCurrent  = newZoomLevel
-		self.zoomStart    = newZoomLevel
-		self.zoomTarget   = newZoomLevel
-	} else {
-		self.zoomStart  = self.zoomCurrent
-		self.zoomTarget = newZoomLevel
+	shakeX, shakeY := shaker.GetShakeOffsets(activity)
+	self.shakeElapsed += TicksDuration(self.tickRate)
+	if self.redrawManaged && (shakeX != self.shakeOffsetX || shakeY != self.shakeOffsetY) {
+		self.needsRedraw = true
 	}
-	self.zoomTransitionDuration = transition
-	self.zoomTransitionElapsed  = 0
+	self.shakeOffsetX, self.shakeOffsetY = shakeX, shakeY
 }
 
-func (self *controller) cameraZoomFrom(ifZoom, newZoomLevel float64, transition TicksDuration) {
-	referenceDist := abs(newZoomLevel - ifZoom)
-	if referenceDist == 0 { self.cameraZoom(newZoomLevel, 0) ; return }
-	actualDist := abs(newZoomLevel - self.zoomCurrent)
-	if actualDist == 0 { self.cameraZoom(newZoomLevel, 0) ; return }
-	relativePercent := (actualDist/referenceDist)
-	relativeTransition := float64(transition)*relativePercent
-	compensatoryTicks := max(0, (0.3 - relativePercent)*44) // hacks. 44 should be based on transition...
-	self.cameraZoom(newZoomLevel, TicksDuration(relativeTransition + compensatoryTicks))
+func (self *controller) cameraZoom(newZoomLevel float64) {
+	if self.inDraw { panic("can't zoom during draw stage") }
+	self.zoomTarget = newZoomLevel
+}
+
+func (self *controller) cameraZoomReset(zoomLevel float64) {
+	if self.inDraw { panic("can't reset zoom during draw stage") }
+	self.zoomCurrent, self.zoomTarget = zoomLevel, zoomLevel
+	self.cameraGetInternalZoomer().Reset()
+}
+
+func (self *controller) cameraGetZoomer() Zoomer {
+	return self.zoomer
+}
+
+func (self *controller) cameraSetZoomer(zoomer Zoomer) {
+	if self.inDraw { panic("can't change zoomer during draw stage") }
+	self.zoomer = zoomer
 }
 
 func (self *controller) cameraGetZoom() (current, target float64) {

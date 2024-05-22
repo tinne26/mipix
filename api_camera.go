@@ -29,7 +29,7 @@ func (AccessorCamera) GetTracker() Tracker {
 
 // Sets the tracker in charge of updating the camera position.
 // By default the tracker is nil, and tracking is handled
-// by a fallback [InstantTracker].
+// by a fallback [LinearTracker].
 func (AccessorCamera) SetTracker(tracker Tracker) {
 	pkgController.cameraSetTracker(tracker)
 }
@@ -91,42 +91,36 @@ func (AccessorCamera) AreaF64() (minX, minY, maxX, maxY float64) {
 
 // --- zoom ---
 
-// Begins a transition from the current zoom level to the new given
-// value. Common zoom values range between 0.5 and 3. For immediate
-// transitions, use [ZeroTicks].
-func (AccessorCamera) Zoom(toZoomLevel float64, transition TicksDuration) {
-	pkgController.cameraZoom(toZoomLevel, transition)
+// Zoomers are an interface used for updating camera zoom
+// levels. Related to [AccessorCamera.SetZoomer]().
+type Zoomer interface {
+	Reset()
+	Update(currentZoomLevel, targetZoomLevel float64) (change float64)
 }
 
-// Same as [AccessorCamera.Zoom](), but the given transition is not absolute,
-// but given as if you were starting the zoom from the 'ifCurrent' zoom level.
-// For example, say we want a transition from x1.0 to x2.0 in 60 ticks. If
-// we are already at x1.5 and we want it to take the proportional 30 ticks
-// instead, we can use ZoomFrom(1.0, 2.0, 60) to handle that automatically.
-func (AccessorCamera) ZoomFrom(ifCurrent, toZoomLevel float64, transition TicksDuration) {
-	pkgController.cameraZoomFrom(ifCurrent, toZoomLevel, transition)
+// Sets a new target zoom level. The transition from the current
+// zoom level to the new one is managed by a [Zoomer].
+func (AccessorCamera) Zoom(newZoomLevel float64) {
+	pkgController.cameraZoom(newZoomLevel)
+}
+
+// Returns the current [Zoomer] interface.
+// See [AccessorCamera.SetZoomer]() for more details.
+func (AccessorCamera) GetZoomer() Zoomer {
+	return pkgController.cameraGetZoomer()
+}
+
+// Sets the [Zoomer] in charge of updating camera zoom levels.
+// By default the zoomer is nil, and zoom levels are handled
+// by a fallback [SimpleZoomer].
+func (AccessorCamera) SetZoomer(zoomer Zoomer) {
+	pkgController.cameraSetZoomer(zoomer)
 }
 
 // Returns the current and target zoom levels.
 func (AccessorCamera) GetZoom() (current, target float64) {
 	return pkgController.cameraGetZoom()
 }
-
-// TODO: interpolator for camera would be better, without so many problems
-// for smoothing and so on. There are too many different use-cases and
-// in-between switching and so on.
-
-// When zoom levels are changed in the middle of another zoom transition,
-// the sudden swing can result unpleasant. This is why the camera has
-// zoom swing smoothing enabled by default, making the current zoom
-// transition reduce speed quickly before turning towards the other
-// direction. This can add some extra ticks to zoom transitions, but
-// generally leads to more natural results.
-//
-// This function allows you to turn off/on this feature.
-// func (AccessorCamera) SmoothZoomSwings(smooth bool) {
-// 	pkgController.cameraSmoothZoomSwings(smooth)
-// }
 
 // --- screen shaking ---
 

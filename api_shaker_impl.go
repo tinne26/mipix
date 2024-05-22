@@ -2,29 +2,20 @@ package mipix
 
 import "math/rand/v2"
 
-import "github.com/hajimehoshi/ebiten/v2"
-
-var defaultSimpleShaker *SimpleShaker = &SimpleShaker{}
+var defaultSimpleShaker *SimpleShaker
 var _ Shaker = (*SimpleShaker)(nil)
 
+// A default implementation of the [Shaker] interface.
 type SimpleShaker struct {
-	horzRange, vertRange float64
 	fromX, fromY float64
 	toX, toY float64
 	progress float64
 }
 
-// Sets the maximum horizontal and vertical range of the shaker.
-//
-// As an example, when no shaker is set mipix initializes a
-// SimpleShaker with a range of 1/80 of the shortest axis of
-// the logical resolution.
-func (self *SimpleShaker) SetRange(horz, vert float64) {
-	self.horzRange, self.vertRange = horz, vert
-}
-
 // Implements the [Shaker] interface.
 func (self *SimpleShaker) GetShakeOffsets(activity float64) (float64, float64) {
+	const ProgressSpeed = 64.0
+	
 	// notice: completely sh*t temporary implementation
 	// what about sine-like for y and noisy for x?
 	// and Math.sqrt(1 - Math.pow(x - 1, 2)) for circular interpolation in the top-left quadrant
@@ -38,18 +29,20 @@ func (self *SimpleShaker) GetShakeOffsets(activity float64) (float64, float64) {
 
 	x := smoothInterp(self.fromX, self.toX, self.progress)
 	y := smoothInterp(self.fromY, self.toY, self.progress)
-	self.progress += (40.0*float64(Tick().GetRate()))/float64(ebiten.TPS())
+	self.progress += ProgressSpeed*1.0/float64(Tick().UPS())
 	if self.progress >= 1.0 {
 		self.rollNewTarget()
 		self.progress = 0.0
-	}
+	} 
+	w, h := GetResolution()
+	axisRange := float64(min(w, h))/70.0
+	x, y = x*axisRange, y*axisRange
 	if activity == 1.0 { return x, y }
 	return smoothInterp(0, x, activity), smoothInterp(0, y, activity)
 }
 
 func (self *SimpleShaker) rollNewTarget() {
 	self.fromX, self.fromY = self.toX, self.toY
-	self.toX = rand.Float64()*self.horzRange - self.horzRange/2.0
-	self.toY = rand.Float64()*self.vertRange - self.vertRange/2.0
+	self.toX = rand.Float64() - 0.5
+	self.toY = rand.Float64() - 0.5
 }
-

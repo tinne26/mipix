@@ -9,10 +9,9 @@ var pkgController controller
 func init() {
 	pkgController.zoomCurrent = 1.0
 	pkgController.zoomTarget = 1.0
-	pkgController.zoomStart = 1.0
 	pkgController.tickRate = 1
-	pkgController.zoomSmoothSwings = true
 	pkgController.lastFlushCoordinatesTick = 0xFFFF_FFFF_FFFF_FFFF
+	pkgController.needsRedraw = true
 }
 
 type controller struct {
@@ -26,12 +25,14 @@ type controller struct {
 	hiResHeight int
 	prevHiResCanvasWidth  int // used to update layoutHasChanged even on unexpected cases *
 	prevHiResCanvasHeight int // used to update layoutHasChanged even on unexpected cases
+	// * https://github.com/hajimehoshi/ebiten/issues/2978
 	layoutHasChanged bool
 	inDraw bool
-	zoomSmoothSwings bool
+	redrawManaged bool
+	needsRedraw bool
+	needsClear bool
 	stretchingEnabled bool
 	scalingFilter ScalingFilter
-	// * https://github.com/hajimehoshi/ebiten/issues/2978
 	
 	// camera
 	lastFlushCoordinatesTick uint64
@@ -47,11 +48,8 @@ type controller struct {
 	trackerPrevSpeedY float64
 
 	// zoom
-	zoomTransitionElapsed TicksDuration
-	zoomTransitionDuration TicksDuration
+	zoomer Zoomer
 	zoomCurrent float64
-	zoomStart float64
-	zoomPrevious float64
 	zoomTarget float64
 
 	// shake
@@ -85,6 +83,7 @@ func (self *controller) Update() error {
 	err := self.game.Update()
 	if err != nil { return err }
 	self.cameraFlushCoordinates()
+	self.layoutHasChanged = false
 	return nil
 }
 
@@ -101,10 +100,16 @@ func (self *controller) Draw(hiResCanvas *ebiten.Image) {
 		self.prevHiResCanvasWidth  = hiResWidth
 		self.prevHiResCanvasHeight = hiResHeight
 		self.layoutHasChanged = true
+		self.needsRedraw = true
 	}
 
 	logicalCanvas := self.getLogicalCanvas()
 	activeCanvas  := self.getActiveHiResCanvas(hiResCanvas)
+	if self.needsClear {
+		self.needsClear = false
+		hiResCanvas.Clear()
+		logicalCanvas.Clear()
+	}
 	self.game.Draw(logicalCanvas)
 	
 	var drawIndex int = 0
@@ -128,8 +133,13 @@ func (self *controller) Draw(hiResCanvas *ebiten.Image) {
 	self.queuedDraws = self.queuedDraws[ : 0]
 
 	// final projection
-	if !prevDrawWasHiRes { self.projectLogical(logicalCanvas, activeCanvas) }
-	self.debugDrawAll(activeCanvas)
+	if !self.redrawManaged || self.needsRedraw {
+		if !prevDrawWasHiRes {
+			self.projectLogical(logicalCanvas, activeCanvas)
+		}
+		self.debugDrawAll(activeCanvas)
+	}
+	self.needsRedraw = false
 	self.inDraw = false
 }
 
@@ -186,9 +196,9 @@ func (self *controller) Layout(logicWinWidth, logicWinHeight int) (int, int) {
 	scale := monitor.DeviceScaleFactor()
 	hiResWidth  := int(float64(logicWinWidth)*scale)
 	hiResHeight := int(float64(logicWinHeight)*scale)
-	self.layoutHasChanged = false
 	if hiResWidth != self.hiResWidth || hiResHeight != self.hiResHeight {
 		self.layoutHasChanged = true
+		self.needsRedraw = true
 		self.hiResWidth, self.hiResHeight = hiResWidth, hiResHeight
 	}
 	return self.hiResWidth, self.hiResHeight
@@ -199,9 +209,9 @@ func (self *controller) LayoutF(logicWinWidth, logicWinHeight float64) (float64,
 	scale := monitor.DeviceScaleFactor()
 	outWidth  := math.Ceil(logicWinWidth*scale)
 	outHeight := math.Ceil(logicWinHeight*scale)
-	self.layoutHasChanged = false
 	if int(outWidth) != self.hiResWidth || int(outHeight) != self.hiResHeight {
 		self.layoutHasChanged = true
+		self.needsRedraw = true
 		self.hiResWidth, self.hiResHeight = int(outWidth), int(outHeight)
 	}
 	return outWidth, outHeight
@@ -229,6 +239,7 @@ func (self *controller) setResolution(width, height int) {
 	if self.inDraw { panic("can't change resolution during draw stage") }
 	if width < 1 || height < 1 { panic("game resolution must be at least (1, 1)") }
 	if width != self.logicalWidth || height != self.logicalHeight {
+		self.needsRedraw = true
 		self.logicalWidth, self.logicalHeight = width, height
 		self.updateCameraArea()
 	}
@@ -238,7 +249,10 @@ func (self *controller) setResolution(width, height int) {
 
 func (self *controller) scalingSetFilter(filter ScalingFilter) {
 	if self.inDraw { panic("can't change scaling filter during draw stage") }
-	self.scalingFilter = filter
+	if filter != self.scalingFilter {
+		self.needsRedraw = true
+		self.scalingFilter = filter
+	}
 	if self.shaders[filter] == nil {
 		self.compileShader(filter)
 	}
@@ -250,11 +264,38 @@ func (self *controller) scalingGetFilter() ScalingFilter {
 
 func (self *controller) scalingSetStretchingAllowed(allowed bool) {
 	if self.inDraw { panic("can't change stretching mode during draw stage") }
-	self.stretchingEnabled = allowed
+	if allowed != self.stretchingEnabled {
+		self.needsRedraw = true
+		self.stretchingEnabled = allowed
+	}
 }
 
 func (self *controller) scalingGetStretchingAllowed() bool {
 	return self.stretchingEnabled
+}
+
+// --- redraw ---
+
+func (self *controller) redrawSetManaged(managed bool) {
+	if self.inDraw { panic("can't change redraw management during draw stage") }
+	self.redrawManaged = managed
+}
+
+func (self *controller) redrawIsManaged() bool {
+	return self.redrawManaged
+}
+
+func (self *controller) redrawRequest() {
+	if self.inDraw { panic("can't request redraw during draw stage") }
+	self.needsRedraw = true
+}
+
+func (self *controller) redrawPending() bool {
+	return self.needsRedraw || !self.redrawManaged
+}
+
+func (self *controller) redrawScheduleClear() {
+	self.needsClear = true
 }
 
 // --- hi res ---
