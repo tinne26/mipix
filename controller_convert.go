@@ -10,7 +10,7 @@ func (self *controller) convertToRelativeCoords(x, y int) (float64, float64) {
 func (self *controller) convertToLogicalCoords(x, y int) (float64, float64) {
 	rx, ry := self.convertToRelativeCoords(x, y)
 	minX, minY, _, _ := self.cameraAreaF64()
-	return minX + rx*float64(self.logicalWidth)*self.zoomCurrent, minY + ry*float64(self.logicalHeight)*self.zoomCurrent
+	return minX + rx*float64(self.logicalWidth)/self.zoomCurrent, minY + ry*float64(self.logicalHeight)/self.zoomCurrent
 }
 
 func (self *controller) hackyGetMargins() (float64, float64) {

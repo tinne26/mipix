@@ -267,6 +267,7 @@ func (self *controller) scalingSetStretchingAllowed(allowed bool) {
 	if allowed != self.stretchingEnabled {
 		self.needsRedraw = true
 		self.stretchingEnabled = allowed
+		if !allowed { self.needsClear = true }
 	}
 }
 
@@ -312,7 +313,7 @@ func (self *controller) hiResDrawHorzFlip(target, source *ebiten.Image, x, y flo
 
 func (self *controller) internalHiResDraw(target, source *ebiten.Image, x, y float64, horzFlip bool) {
 	// view culling
-	camMinX, camMinY, camMaxX, camMaxY := self.cameraAreaF64() // TODO: this is per draw
+	camMinX, camMinY, camMaxX, camMaxY := self.cameraAreaF64()
 	if x > camMaxX || y > camMaxY { return }
 	sourceBounds := source.Bounds()
 	sourceWidth, sourceHeight := float64(sourceBounds.Dx()), float64(sourceBounds.Dy())

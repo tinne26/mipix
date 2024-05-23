@@ -29,9 +29,19 @@ func clamp[T cmp.Ordered](x, a, b T) T {
 	return x
 }
 
+func clampTowardsZero[T float64 | float32 | int | int16 | int32 | int64](x, clampReference T) T {
+	if clampReference > 0 { return min(x, clampReference) }
+	return max(x, clampReference)
+}
+
 func abs[T float64 | float32 | int | int8 | int16 | int32 | int64](x T) T {
 	if x >= 0 { return x }
 	return -x
+}
+
+func sign[T float64 | float32 | int | int8 | int16 | int32 | int64](x T) T {
+	if x >= 0 { return +1 }
+	return -1
 }
 
 // --- color ---
