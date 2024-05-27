@@ -91,7 +91,7 @@ type AccessorHiRes struct{}
 
 // Provides access to high resolution drawing methods in
 // a structured manner. Use through method chaining, e.g.:
-//   mipix.HiRes().Draw()
+//   mipix.HiRes().Draw(target, source, x, y)
 func HiRes() AccessorHiRes { return AccessorHiRes{} }
 
 // Draws the given source into the target at the given logical coordinates.
@@ -259,7 +259,7 @@ type AccessorDebug struct{}
 
 // Provides access to debugging functionality in a structured
 // manner. Use through method chaining, e.g.:
-//   mipix.Debug().Drawf("current tick: %d", mipix.Ticks().Now())
+//   mipix.Debug().Drawf("current tick: %d", mipix.Tick().Now())
 func Debug() AccessorDebug { return AccessorDebug{} }
 
 // Similar to Printf debugging, but drawing the text on the top
@@ -310,45 +310,37 @@ func (AccessorTick) Now() uint64 {
 	return pkgController.tickNow()
 }
 
-// Returns the updates per second. This is ebiten.TPS(),
-// but mipix considers a more advanced model for ticks
-// and updates.
+// Returns the updates per second. This is [ebiten.TPS](),
+// but mipix considers a more advanced model for [ticks
+// and updates].
 //
-// The update delta, or "time you should be simulating
-// during an update", is 1.0/float64(Tick().UPS()). In
-// general it's preferable to work directly with ticks
-// if you want to keep you game logic deterministic, but
-// there are many situations where you either don't care
-// about determinism, or calculations will only affect
-// visual elements, like the camera position and similar,
-// that wouldn't affect the core state of your game
-// anyways and you want to simulate smoothly.
+// [ticks and updates]: https://github.com/tinne26/mipix/blob/main/docs/ups-vs-tps.md
 func (AccessorTick) UPS() int {
 	return ebiten.TPS()
 }
 
+// This is just [ebiten.SetTPS]() under the hood, but mipix
+// considers a more advanced model for [ticks and updates].
+//
+// [ticks and updates]: https://github.com/tinne26/mipix/blob/main/docs/ups-vs-tps.md
+func (AccessorTick) SetUPS(updatesPerSecond int) {
+	ebiten.SetTPS(updatesPerSecond)
+}
+
 // Returns the ticks per second. This is UPS()*TickRate.
-// Notice that this is not ebiten.TPS(), as mipix considers
-// a more advanced model for ticks and updates.
+// Notice that this is not [ebiten.TPS](), as mipix considers
+// a more advanced model for [ticks and updates].
+//
+// [ticks and updates]: https://github.com/tinne26/mipix/blob/main/docs/ups-vs-tps.md
 func (AccessorTick) TPS() int {
 	return ebiten.TPS()*int(pkgController.tickRate)
 }
 
-// An advanced mechanism to improve support for high refresh
-// rate displays.
+// Sets the tick rate (ticks per update, often refered to as "TPU").
+// Notice that this is not [ebiten.SetTPS](), as mipix considers
+// a more advanced model for [ticks and updates].
 //
-// For context, the basic idea is to consider the game clock to
-// always run at 240 ticks per second. This can be simulated
-// perfectly through [ebiten.SetTPS](240), but it can also be
-// reproduced with 120TPS (by advancing the internal clock by 2
-// ticks on each update instead of 1), or 60TPS (advance by 4
-// instead of 1). With some care, this allows games to preserve
-// a perfectly determinist logic while providing players with 
-// high refresh rate displays a smoother or more responsive
-// experience.
-//
-// This is not necessary, relevant or appropriate for every game.
-// This is not necessary, relevant or appropriate for every player.
+// [ticks and updates]: https://github.com/tinne26/mipix/blob/main/docs/ups-vs-tps.md
 func (AccessorTick) SetRate(tickRate int) {
 	pkgController.tickSetRate(tickRate)
 }

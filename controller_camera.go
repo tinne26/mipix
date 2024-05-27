@@ -3,6 +3,11 @@ package mipix
 import "math"
 import "image"
 
+import "github.com/tinne26/mipix/internal"
+import "github.com/tinne26/mipix/zoomer"
+import "github.com/tinne26/mipix/tracker"
+import "github.com/tinne26/mipix/shaker"
+
 func (self *controller) cameraAreaGet() image.Rectangle {
 	return self.cameraArea
 }
@@ -25,11 +30,11 @@ func (self *controller) updateCameraArea() {
 
 // ---- tracking ----
 
-func (self *controller) cameraGetTracker() Tracker {
+func (self *controller) cameraGetTracker() tracker.Tracker {
 	return self.tracker
 }
 
-func (self *controller) cameraSetTracker(tracker Tracker) {
+func (self *controller) cameraSetTracker(tracker tracker.Tracker) {
 	if self.inDraw { panic("can't set tracker during draw stage") }
 	self.tracker = tracker
 }
@@ -59,9 +64,9 @@ func (self *controller) cameraFlushCoordinates() {
 }
 
 func (self *controller) updateTracking() {
-	var tracker Tracker = self.tracker
-	if tracker == nil { tracker = LinearTracker }
-	self.trackerPrevSpeedX, self.trackerPrevSpeedY = tracker.Update(
+	var camTracker tracker.Tracker = self.tracker
+	if camTracker == nil { camTracker = tracker.LinearTracker }
+	self.trackerPrevSpeedX, self.trackerPrevSpeedY = camTracker.Update(
 		self.trackerCurrentX, self.trackerCurrentY,
 		self.trackerTargetX, self.trackerTargetY,
 		self.trackerPrevSpeedX, self.trackerPrevSpeedY,
@@ -79,34 +84,38 @@ func (self *controller) updateTracking() {
 func (self *controller) updateZoom() {
 	zoomer := self.cameraGetInternalZoomer()
 	change := zoomer.Update(self.zoomCurrent, self.zoomTarget)
+	if math.IsNaN(change) { panic("zoomer returned NaN") }
 	self.zoomCurrent += change
+	internal.CurrentZoom = self.zoomCurrent
+	if self.zoomCurrent < 0.005 || self.zoomCurrent > 500.0 {
+		panic("something is wrong with the zoomer: after last update, zoom went outside [0.005, 500.0]")
+	}
 	
 	if self.redrawManaged && change != 0 {
 		self.needsRedraw = true
 	}
 }
 
-func (self *controller) cameraGetInternalZoomer() Zoomer {
+func (self *controller) cameraGetInternalZoomer() zoomer.Zoomer {
 	if self.zoomer != nil { return self.zoomer }
-	if defaultSimpleZoomer == nil {
-		defaultSimpleZoomer = &SimpleZoomer{}
-		defaultSimpleZoomer.Reset()
+	if defaultZoomer == nil {
+		defaultZoomer = &zoomer.Quadratic{}
+		defaultZoomer.Reset()
 	}
-	return defaultSimpleZoomer
+	return defaultZoomer
 }
 
 func (self *controller) updateShake() {
 	if !self.cameraIsShaking() { return }
-	var shaker Shaker = self.shaker
-	if shaker == nil {
-		if defaultSimpleShaker == nil {
-			defaultSimpleShaker = &SimpleShaker{}
-			defaultSimpleShaker.rollNewTarget()
+	var camShaker shaker.Shaker = self.shaker
+	if camShaker == nil {
+		if defaultShaker == nil {
+			defaultShaker = &shaker.Random{}
 		}
-		shaker = defaultSimpleShaker
+		camShaker = defaultShaker
 	}
 	activity := self.getShakeActivity()
-	shakeX, shakeY := shaker.GetShakeOffsets(activity)
+	shakeX, shakeY := camShaker.GetShakeOffsets(activity)
 	self.shakeElapsed += TicksDuration(self.tickRate)
 	if self.redrawManaged && (shakeX != self.shakeOffsetX || shakeY != self.shakeOffsetY) {
 		self.needsRedraw = true
@@ -121,15 +130,15 @@ func (self *controller) cameraZoom(newZoomLevel float64) {
 
 func (self *controller) cameraZoomReset(zoomLevel float64) {
 	if self.inDraw { panic("can't reset zoom during draw stage") }
-	self.zoomCurrent, self.zoomTarget = zoomLevel, zoomLevel
+	self.zoomCurrent, self.zoomTarget, internal.CurrentZoom = zoomLevel, zoomLevel, zoomLevel
 	self.cameraGetInternalZoomer().Reset()
 }
 
-func (self *controller) cameraGetZoomer() Zoomer {
+func (self *controller) cameraGetZoomer() zoomer.Zoomer {
 	return self.zoomer
 }
 
-func (self *controller) cameraSetZoomer(zoomer Zoomer) {
+func (self *controller) cameraSetZoomer(zoomer zoomer.Zoomer) {
 	if self.inDraw { panic("can't change zoomer during draw stage") }
 	self.zoomer = zoomer
 }
@@ -140,12 +149,12 @@ func (self *controller) cameraGetZoom() (current, target float64) {
 
 // ---- screenshake ----
 
-func (self *controller) cameraSetShaker(shaker Shaker) {
+func (self *controller) cameraSetShaker(shaker shaker.Shaker) {
 	if self.inDraw { panic("can't set shaker during draw stage") }
 	self.shaker = shaker
 }
 
-func (self *controller) cameraGetShaker() Shaker {
+func (self *controller) cameraGetShaker() shaker.Shaker {
 	return self.shaker
 }
 

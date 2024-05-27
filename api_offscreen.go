@@ -5,6 +5,8 @@ import "image/color"
 
 import "github.com/hajimehoshi/ebiten/v2"
 
+import "github.com/tinne26/mipix/internal"
+
 // Offscreens are logically sized canvases that you can draw on
 // and later project to a high resolution screen. By default,
 // your game world is not drawn on manual offscreens, but rather
@@ -56,12 +58,12 @@ func (self *Offscreen) DrawAt(source *ebiten.Image, x, y int) {
 
 // Similar to [ebiten.Image.Fill](), but with BlendSourceOver instead of BlendCopy.
 func (self *Offscreen) Coat(fillColor color.Color) {
-	fillOverRect(self.canvas, self.canvas.Bounds(), fillColor)
+	internal.FillOverRect(self.canvas, self.canvas.Bounds(), fillColor)
 }
 
 // Similar to [Offscreen.Coat](), but restricted to a specific rectangular area.
 func (self *Offscreen) CoatRect(bounds image.Rectangle, fillColor color.Color) {
-	fillOverRect(self.canvas, bounds, fillColor)
+	internal.FillOverRect(self.canvas, bounds, fillColor)
 }
 
 // Clears the underlying canvas.

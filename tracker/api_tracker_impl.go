@@ -1,4 +1,6 @@
-package mipix
+package tracker
+
+import "github.com/tinne26/mipix/internal"
 
 var (
 	FrozenTracker  Tracker = frozenTracker{}  // Update(...) always returns (0, 0)
@@ -20,11 +22,11 @@ func (instantTracker) Update(currentX, currentY, targetX, targetY, prevSpeedX, p
 type linearTracker struct {}
 
 func (self linearTracker) Update(currentX, currentY, targetX, targetY, prevSpeedX, prevSpeedY float64) (float64, float64) {
-	w, h := GetResolution()
-	zoom, _ := Camera().GetZoom()
+	w, h := internal.GetResolution()
+	zoom := internal.GetCurrentZoom()
 	widthF64, heightF64 := float64(w)/zoom, float64(h)/zoom
 	
-	updateDelta := 1.0/float64(Tick().UPS())
+	updateDelta := 1.0/float64(internal.GetUPS())
 	maxHorzAdvance := 6.0*zoom*widthF64*updateDelta  // use higher values for a more rigid / strict tracking
 	maxVertAdvance := 6.0*zoom*heightF64*updateDelta // use lower values for a more elastic / softer tracking
 	minAdvance := 0.01*updateDelta
@@ -40,12 +42,14 @@ func computeLinComponent(current, target, minAdvance, maxAdvance, refMaxDist flo
 	// determine base speed
 	if target > current { // going right
 		dist := min(target - current, refMaxDist)
-		advance := linearInterp(0, maxAdvance, tAt(dist, 0, refMaxDist))
+		t := internal.TAt(dist, 0, refMaxDist)
+		advance := internal.LinearInterp(0, maxAdvance, t)
 		if advance >= minAdvance { return advance }
 		return min(minAdvance, dist)
 	} else { // going left
 		dist := min(current - target, refMaxDist)
-		advance := linearInterp(0, maxAdvance, tAt(dist, 0, refMaxDist))
+		t := internal.TAt(dist, 0, refMaxDist)
+		advance := internal.LinearInterp(0, maxAdvance, t)
 		if advance >= minAdvance { return -advance }
 		return -min(minAdvance, dist)
 	}
@@ -62,12 +66,12 @@ var _ Tracker = (*SimpleTracker)(nil)
 
 // Implements [Tracker].
 func (self *SimpleTracker) Update(currentX, currentY, targetX, targetY, prevSpeedX, prevSpeedY float64) (float64, float64) {
-	w, h := GetResolution()
-	zoom, _ := Camera().GetZoom()
+	w, h := internal.GetResolution()
+	zoom := internal.GetCurrentZoom()
 	widthF64, heightF64 := float64(w)/zoom, float64(h)/zoom
 	
 	// TODO: the use of zoom here is not very clean
-	updateDelta := 1.0/float64(Tick().UPS())
+	updateDelta := 1.0/float64(internal.GetUPS())
 	maxHorzAdvance := 6.0*zoom*widthF64*updateDelta  // use higher values for a more rigid / strict tracking
 	maxVertAdvance := 6.0*zoom*heightF64*updateDelta // use lower values for a more elastic / softer tracking
 	minAdvance := 0.01*updateDelta
@@ -98,8 +102,8 @@ func (self *SimpleTracker) Update(currentX, currentY, targetX, targetY, prevSpee
 		self.xCompensation += RecoverySpeed*updateDelta
 		if self.xCompensation > -0.001 { self.xCompensation = 0.0 }
 	default:
-		self.xCompensation += sign(xError)*widthF64*CompensationPull*updateDelta
-		self.xCompensation = clampTowardsZero(self.xCompensation, xError)
+		self.xCompensation += internal.Sign(xError)*widthF64*CompensationPull*updateDelta
+		self.xCompensation = internal.ClampTowardsZero(self.xCompensation, xError)
 	}
 
 	yError := (targetY - currentY)*ErrorRatio
@@ -111,15 +115,15 @@ func (self *SimpleTracker) Update(currentX, currentY, targetX, targetY, prevSpee
 		self.yCompensation += RecoverySpeed*updateDelta
 		if self.yCompensation > -0.001 { self.yCompensation = 0.0 }
 	default:
-		self.yCompensation += sign(yError)*heightF64*CompensationPull*updateDelta
-		self.yCompensation = clampTowardsZero(self.yCompensation, yError)
+		self.yCompensation += internal.Sign(yError)*heightF64*CompensationPull*updateDelta
+		self.yCompensation = internal.ClampTowardsZero(self.yCompensation, yError)
 	}
 	
 	return horzAdvance + self.xCompensation*18*updateDelta, vertAdvance + self.yCompensation*18*updateDelta
 }
 
 func sim(predictedChange, actualChange float64, maxErrorForZeroSimilarity float64) float64 {
-	predictionError := abs(actualChange - predictedChange)
+	predictionError := internal.Abs(actualChange - predictedChange)
 	if predictionError > maxErrorForZeroSimilarity { return 0.0 }
 	return 1.0 - predictionError/maxErrorForZeroSimilarity
 }

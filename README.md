@@ -31,6 +31,5 @@ I haven't written examples oriented to end users yet, the only examples availabl
 
 ## WIP status
 
-- Unimplemented: SpringTracker, moaar trackers and shakers and gen-zers and so on. Probably move implementations into `mipix/tracker`, `mipix/shaker`, etc.
-- Missing features: probably a couple window size management functions (though we ideally need [ebiten/issues/2978](https://github.com/hajimehoshi/ebiten/issues/2978) resolved first), maaaaybe `HiRes().DrawTriangles()`, or some form of `DrawEachAt(...)`..? I'm surprisingly happy with the feature set at the moment, to be honest.
+- Missing features: probably a couple window size management functions (though we ideally need [ebiten/issues/2978](https://github.com/hajimehoshi/ebiten/issues/2978) resolved first), maybe `HiRes().Project()`, maaaaybe `HiRes().DrawTriangles()`, or some form of `DrawEachAt(...)`..? I'm surprisingly happy with the feature set at the moment, to be honest.
 - Annoyances: practically speaking, drawing UI on top of mipix is a bit annoying. Ideally, you would use bitmap fonts and a bitmap font renderer, but no good solution exists for this yet. I'm working on it on a separate project, though, so hopefully someday...

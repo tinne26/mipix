@@ -5,11 +5,15 @@ import "image"
 
 import "github.com/hajimehoshi/ebiten/v2"
 
+import "github.com/tinne26/mipix/internal"
+import "github.com/tinne26/mipix/zoomer"
+import "github.com/tinne26/mipix/tracker"
+import "github.com/tinne26/mipix/shaker"
+
 var pkgController controller
 func init() {
-	pkgController.zoomCurrent = 1.0
-	pkgController.zoomTarget = 1.0
-	pkgController.tickRate = 1
+	pkgController.cameraZoomReset(1.0)
+	pkgController.tickSetRate(1)
 	pkgController.lastFlushCoordinatesTick = 0xFFFF_FFFF_FFFF_FFFF
 	pkgController.needsRedraw = true
 }
@@ -39,7 +43,7 @@ type controller struct {
 	cameraArea image.Rectangle
 	
 	// tracking
-	tracker Tracker
+	tracker tracker.Tracker
 	trackerCurrentX float64
 	trackerCurrentY float64
 	trackerTargetX float64
@@ -48,12 +52,12 @@ type controller struct {
 	trackerPrevSpeedY float64
 
 	// zoom
-	zoomer Zoomer
+	zoomer zoomer.Zoomer
 	zoomCurrent float64
 	zoomTarget float64
 
 	// shake
-	shaker Shaker
+	shaker shaker.Shaker
 	shakeElapsed TicksDuration
 	shakeFadeIn TicksDuration
 	shakeDuration TicksDuration
@@ -148,6 +152,7 @@ func (self *controller) getLogicalCanvas() *ebiten.Image {
 	height := self.cameraArea.Dy()
 
 	if self.reusableCanvas == nil {
+		// TODO: camera area is not ready sometimes? what?
 		self.reusableCanvas = ebiten.NewImage(width, height)
 		return self.reusableCanvas
 	} else {
@@ -241,6 +246,7 @@ func (self *controller) setResolution(width, height int) {
 	if width != self.logicalWidth || height != self.logicalHeight {
 		self.needsRedraw = true
 		self.logicalWidth, self.logicalHeight = width, height
+		internal.BridgedLogicalWidth, internal.BridgedLogicalHeight = width, height // hyper massive hack
 		self.updateCameraArea()
 	}
 }

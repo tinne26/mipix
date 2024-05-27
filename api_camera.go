@@ -2,35 +2,30 @@ package mipix
 
 import "image"
 
+import "github.com/tinne26/mipix/zoomer"
+import "github.com/tinne26/mipix/tracker"
+import "github.com/tinne26/mipix/shaker"
+
 // See [Camera]().
 type AccessorCamera struct{}
 
 // Provides access to camera-related functionality in a structured
 // manner. Use through method chaining, e.g.:
-//   mipix.Camera().Zoom(2.0, mipix.TicksDuration(30))
+//   mipix.Camera().Zoom(2.0)
 func Camera() AccessorCamera { return AccessorCamera{} } 
 
 // --- tracking ---
 
-// Trackers are an interface used for updating the camera position.
-// Given current and target coordinates, a tracker must return
-// the advance for a single update.
-//
-// Related to [AccessorCamera.SetTracker]().
-type Tracker interface {
-	Update(currentX, currentY, targetX, targetY, prevSpeedX, prevSpeedY float64) (float64, float64)
-}
-
 // Returns the current tracker. See [AccessorCamera.SetTracker]()
 // for more details.
-func (AccessorCamera) GetTracker() Tracker {
+func (AccessorCamera) GetTracker() tracker.Tracker {
 	return pkgController.cameraGetTracker()
 }
 
 // Sets the tracker in charge of updating the camera position.
 // By default the tracker is nil, and tracking is handled
-// by a fallback [LinearTracker].
-func (AccessorCamera) SetTracker(tracker Tracker) {
+// by a fallback [trackr.LinearTracker].
+func (AccessorCamera) SetTracker(tracker tracker.Tracker) {
 	pkgController.cameraSetTracker(tracker)
 }
 
@@ -73,7 +68,7 @@ func (AccessorCamera) FlushCoordinates() {
 // Returns the logical area of the game that has to be
 // rendered on [Game].Draw()'s canvas or successive logical
 // draws. Notice that this can change after each [Game].Update(),
-// since the camera might be zoomed or shaked.
+// since the camera might be zoomed or shaking.
 //
 // Notice that the area will typically be slightly different
 // between [Game].Update() and [Game].Draw(). If you need more
@@ -91,29 +86,22 @@ func (AccessorCamera) AreaF64() (minX, minY, maxX, maxY float64) {
 
 // --- zoom ---
 
-// Zoomers are an interface used for updating camera zoom
-// levels. Related to [AccessorCamera.SetZoomer]().
-type Zoomer interface {
-	Reset()
-	Update(currentZoomLevel, targetZoomLevel float64) (change float64)
-}
-
 // Sets a new target zoom level. The transition from the current
-// zoom level to the new one is managed by a [Zoomer].
+// zoom level to the new one is managed by a [zoomer.Zoomer].
 func (AccessorCamera) Zoom(newZoomLevel float64) {
 	pkgController.cameraZoom(newZoomLevel)
 }
 
-// Returns the current [Zoomer] interface.
+// Returns the current [zoomer.Zoomer] interface.
 // See [AccessorCamera.SetZoomer]() for more details.
-func (AccessorCamera) GetZoomer() Zoomer {
+func (AccessorCamera) GetZoomer() zoomer.Zoomer {
 	return pkgController.cameraGetZoomer()
 }
 
-// Sets the [Zoomer] in charge of updating camera zoom levels.
+// Sets the [zoomer.Zoomer] in charge of updating camera zoom levels.
 // By default the zoomer is nil, and zoom levels are handled
 // by a fallback [SimpleZoomer].
-func (AccessorCamera) SetZoomer(zoomer Zoomer) {
+func (AccessorCamera) SetZoomer(zoomer zoomer.Zoomer) {
 	pkgController.cameraSetZoomer(zoomer)
 }
 
@@ -124,26 +112,15 @@ func (AccessorCamera) GetZoom() (current, target float64) {
 
 // --- screen shaking ---
 
-// Shakers are an interface used to implement screen shakes.
-// Given a level that transitions linearly between 0 and 1
-// during the fade in and fade out stages, GetShakeOffsets()
-// returns the logical offsets for the camera.
-// 
-// Related to [AccessorCamera.SetShaker](). See [SimpleShaker]
-// for a default implementation.
-type Shaker interface {
-	GetShakeOffsets(level float64) (float64, float64)
-}
-
 // Returns the current screen shaker interface.
 // See [AccessorCamera.SetShaker]() for more details.
-func (AccessorCamera) GetShaker() Shaker {
+func (AccessorCamera) GetShaker() shaker.Shaker {
 	return pkgController.cameraGetShaker()
 }
 
 // Sets a shaker. By default the screen shaker interface is
-// nil, and shakes are handled by a fallback [SimpleShaker].
-func (AccessorCamera) SetShaker(shaker Shaker) {
+// nil, and shakes are handled by a fallback [shaker.SimpleShaker].
+func (AccessorCamera) SetShaker(shaker shaker.Shaker) {
 	pkgController.cameraSetShaker(shaker)
 }
 

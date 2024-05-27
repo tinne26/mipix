@@ -1,10 +1,12 @@
 package mipix
 
+import "github.com/tinne26/mipix/internal"
+
 func (self *controller) convertToRelativeCoords(x, y int) (float64, float64) {
 	xMargin, yMargin := self.hackyGetMargins()
 	relX := (float64(x) - xMargin)/(float64(self.hiResWidth ) - xMargin*2)
 	relY := (float64(y) - yMargin)/(float64(self.hiResHeight) - yMargin*2)
-	return clamp(relX, 0.0, 1.0), clamp(relY, 0.0, 1.0)
+	return internal.Clamp(relX, 0.0, 1.0), internal.Clamp(relY, 0.0, 1.0)
 }
 
 func (self *controller) convertToLogicalCoords(x, y int) (float64, float64) {
