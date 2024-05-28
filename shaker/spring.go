@@ -4,18 +4,13 @@ import "math/rand/v2"
 
 import "github.com/tinne26/mipix/internal"
 
-// idea: just place points anywhere and change them every N ticks. just that.
-// and SetParameters(damping, power float64)
-// this one can also have individual motion ranges for x and y, that will be
-// better
-
 var _ Shaker = (*Spring)(nil)
 
 // A [Shaker] implementation based on spring simulations.
 // It's nothing special, but it has its own flavor. Common
 // configurations remind me of boxes falling from the closet,
 // or driving through a bad road (e.g., params {0.1, 40.0}
-// and motion ranges {0.02, 0.01}).
+// and motion scale {0.02, 0.01}).
 //
 // The implementation is tick-rate independent.
 type Spring struct {
@@ -33,29 +28,33 @@ func (self *Spring) ensureInitialized() {
 	if self.initialized { return }
 	self.initialized = true
 	if self.xRatio == 0.0 { self.xRatio = 0.02 }
-	if self.yRatio == 0.0 { self.yRatio = 0.01 }
+	if self.yRatio == 0.0 { self.yRatio = 0.02 }
 	if !self.spring.IsInitialized() {
-		self.spring.SetParameters(0.1, 40.0)//0.25, 80.0)
+		self.spring.SetParameters(0.25, 80.0)
 	}
 }
 
-// Same idea as [Random.SetMaxMotionRange](), but with two separate
-// factors for each axis. Defaults to 0.02 for both axes, but it
-// often will need tweaking if you also adjust the spring parameters.
-func (self *Spring) SetMaxMotionRange(xRatio, yRatio float64) {
-	if xRatio <= 0.0 {
-		self.xRatio = 0.03
-	} else {
-		self.xRatio = xRatio
+// To preserve resolution independence, shakers often simulate the
+// shaking within a [-0.5, 0.5] space and only later scale it. For
+// example, if you have a resolution of 32x32 and set a motion
+// scale of (0.25, 0.25), the shaking will range within [-4, +4]
+// in both axes.
+// 
+// Defaults to 0.02.
+func (self *Spring) SetMotionScale(xScalingFactor, yScalingFactor float64) {
+	if xScalingFactor <= 0.0 && yScalingFactor <= 0.0 {
+		panic("xScalingFactor and yScalingFactor can't be both <= 0.0")
 	}
-	if yRatio <= 0.0 {
-		self.yRatio = 0.03
-	} else {
-		self.yRatio = yRatio
-	}
+	self.xRatio = xScalingFactor
+	self.yRatio = yScalingFactor
 }
 
-// Same idea as [Bezier.SetZoomCompensation](). Defaults to 0.
+// The range of motion of most shakers is based on the logical
+// resolution of the game. This means that when zooming in or
+// out, the shaking effect will become more or less pronounced,
+// respectively. If you want the shaking to maintain the same
+// relative magnitude regardless of zoom level, change the zoom
+// compensation from 0 (the default) to 1.
 func (self *Spring) SetZoomCompensation(compensation float64) {
 	if compensation < 0 || compensation > 1.0 {
 		panic("zoom compensation factor must be in [0, 1]")
@@ -65,7 +64,7 @@ func (self *Spring) SetZoomCompensation(compensation float64) {
 
 // Sets the internal spring simulation parameters.
 // Defaults are (0.25, 80.0), but it depends a lot on
-// the motion ranges too.
+// the motion scaling too.
 func (self *Spring) SetParameters(damping, power float64) {
 	if damping < 0.0 || damping > 1.0 {
 		panic("damping must be in [0, 1] range")

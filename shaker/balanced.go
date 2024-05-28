@@ -10,7 +10,7 @@ var _ Shaker = (*Balanced)(nil)
 // Cubic bézier curves with start and end points at (0, 0),
 // in some kind of circular oscillation.
 //
-// You can set the motion range to 0.02 and travel time to
+// You can set the motion scale to 0.02 and travel time to
 // 1.4 for a soft ship-like motion. The default is more like
 // a dampened earthquake. The shaking is fairly homogeneous
 // and consistent in speed and motion. You could probably
@@ -44,16 +44,24 @@ func (self *Balanced) ensureInitialized() {
 	self.rerollControlPoints()
 }
 
-// Same idea as [Bezier.SetMaxMotionRange](). Defaults to 0.01.
-func (self *Balanced) SetMaxMotionRange(axisRatio float64) {
-	if axisRatio <= 0.0 {
-		self.axisRatio = 0.05
-	} else {
-		self.axisRatio = axisRatio
-	}
+// To preserve resolution independence, shakers often simulate the
+// shaking within a [-0.5, 0.5] space and only later scale it. For
+// example, if you have a resolution of 32x32 and set a motion
+// scale of 0.25, the shaking will range within [-4, +4] in both
+// axes.
+// 
+// Defaults to 0.01.
+func (self *Balanced) SetMotionScale(axisScalingFactor float64) {
+	if axisScalingFactor <= 0.0 { panic("axisScalingFactor must be strictly positive") }
+	self.axisRatio = axisScalingFactor
 }
 
-// Same idea as [Bezier.SetZoomCompensated](). Defaults to 0.
+// The range of motion of most shakers is based on the logical
+// resolution of the game. This means that when zooming in or
+// out, the shaking effect will become more or less pronounced,
+// respectively. If you want the shaking to maintain the same
+// relative magnitude regardless of zoom level, change the zoom
+// compensation from 0 (the default) to 1.
 func (self *Balanced) SetZoomCompensation(compensation float64) {
 	if compensation < 0 || compensation > 1.0 {
 		panic("zoom compensation factor must be in [0, 1]")

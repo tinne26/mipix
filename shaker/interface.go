@@ -1,5 +1,5 @@
 // This package defines a [Shaker] interface that the mipix
-// camera can use to perform screen shakes and provides
+// camera can use to perform screen shakes, and provides
 // a few default implementations.
 //
 // All provided implementations respect a few properties:
@@ -8,10 +8,10 @@
 //  - Tick-rate independent: results are visually similar
 //    regardless of your Tick().UPS() and Tick().GetRate() values.
 //    See [ups-vs-tps] if you need more context.
-// These are nice properties to have for public implementations,
-// but if you write your own, remember that most often these properties
-// won't be relevant to you. Make your life easier and ignore them if
-// you are only getting started.
+// These are nice properties for public implementations, but if you
+// are writing your own, remember that most often these properties
+// won't be relevant to you. You can ignore them and make your life
+// easier if you are only getting started.
 //
 // [ups-vs-tps]: https://github.com/tinne26/mipix/blob/main/docs/ups-vs-tps.md
 package shaker

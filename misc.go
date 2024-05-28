@@ -6,7 +6,7 @@ import "github.com/hajimehoshi/ebiten/v2"
 
 import "github.com/tinne26/mipix/internal"
 
-// Helper type used for zoom transitions and shakes.
+// Helper type used for fades and durations of some effects.
 type TicksDuration = internal.TicksDuration
 
 const ZeroTicks TicksDuration = 0

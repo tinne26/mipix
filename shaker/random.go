@@ -38,25 +38,20 @@ func (self *Random) ensureInitialized() {
 	}
 }
 
-// Sets the maximum travel distance between shake points, as
-// a ratio to be applied to the game's logical resolution.
-//
-// For example, if the game resolution is 64x64 and you set
-// a maximum shake of 0.25, the shake will range within [-8,
-// +8] for both axes.
-//
-// Reasonable values range from 0.005 to 0.3. Values <= 0.0
-// will be silently discarded and the default of 0.02 will
-// be restored.
-func (self *Random) SetMaxMotionRange(axisRatio float64) {
-	if axisRatio <= 0.0 {
-		self.axisRatio = 0.02
-	} else {
-		self.axisRatio = axisRatio
-	}
+
+// To preserve resolution independence, shakers often simulate the
+// shaking within a [-0.5, 0.5] space and only later scale it. For
+// example, if you have a resolution of 32x32 and set a motion
+// scale of 0.25, the shaking will range within [-4, +4] in both
+// axes.
+// 
+// Defaults to 0.02.
+func (self *Random) SetMotionScale(axisScalingFactor float64) {
+	if axisScalingFactor <= 0.0 { panic("axisScalingFactor must be strictly positive") }
+	self.axisRatio = axisScalingFactor
 }
 
-// The range of motion of the shaker is based on the logical
+// The range of motion of most shakers is based on the logical
 // resolution of the game. This means that when zooming in or
 // out, the shaking effect will become more or less pronounced,
 // respectively. If you want the shaking to maintain the same

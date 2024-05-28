@@ -39,7 +39,7 @@ Well, it's all a lie. Plenty of mipix interface implementations are based on tim
 
 Many interface implementations in mipix mention being tick-rate independent or update-rate independent:
 - Tick-rate independent means that no matter what tick rate or UPS you set, the result will be perceptually the same. This is usually guaranteed with default [`Tracker`](https://pkg.go.dev/github.com/tinne26/mipix/tracker#Tracker) implementations. This is generally only recommended for visuals, not game logic.
-- Update-rate independent is a less strict promise, as changing the total amount of ticks per second will change the results too. This is used with [`Shaker`](https://pkg.go.dev/github.com/tinne26/mipix/shaker#Shaker) and [`Zoomer`](https://pkg.go.dev/github.com/tinne26/mipix/zoomer#Zoomer), as they use tick-based transitions.
+- Update-rate independent is a less strict promise, as changing the total amount of ticks per second will change the results too.
 
 > [!CAUTION]
 > In practice, the precision of many algorithms depends on the number of iterations it simulates. For very high simulation rates, results would typically converge with a high degree of accuracy, but... if you use 30UPS, some things might not go so smoothly. It's always advisable to test all your configurations.

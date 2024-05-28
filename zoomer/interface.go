@@ -1,4 +1,4 @@
-// This package defines a [Tracker] interface that the mipix
+// This package defines a [Zoomer] interface that the mipix
 // camera can use to update its position, and provides a few
 // default implementations.
 //
@@ -10,10 +10,10 @@
 //    still reproduce the same results. See [ups-vs-tps] if you
 //    need more context. Many implementations are actually also
 //    tick-rate independent.
-// These are nice properties to have for public implementations,
-// but if you write your own, remember that most often these properties
-// won't be relevant to you. Make your life easier and ignore them if
-// you are only getting started.
+// These are nice properties for public implementations, but if you
+// are writing your own, remember that most often these properties
+// won't be relevant to you. You can ignore them and make your life
+// easier if you are only getting started.
 //
 // Warning: avoid bringing cameras to 0.1 and similarly low zoom
 // levels. At those levels, zoomer bounciness and overshoot can make

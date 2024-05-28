@@ -9,8 +9,8 @@ var _ Shaker = (*Quake)(nil)
 // Implementation of a [Shaker] with consistently oscillating
 // movement in both axes, but with some irregularities in speed
 // and travel distance. It's interesting because it has those
-// unpredictable variances within a very predictable motion
-// pattern.
+// unpredictable variances within a very predictable and rather
+// smooth motion pattern.
 //
 // The implementation is tick-rate independent.
 type Quake struct {
@@ -42,20 +42,36 @@ func (self *Quake) ensureInitialized() {
 	self.towardsY, self.ySpeedIni, self.ySpeedEnd = self.reroll(0.0, 0.0)
 }
 
-// Defaults to (5.0, 23.0).
+// Internally, both x and y oscillate at their own speeds.
+// While going from side to side, these speeds can change
+// between any random values within [minSpeed, maxSpeed].
+//
+// This method allows you to configure those speeds.
+// The default values are (5.0, 23.0).
 func (self *Quake) SetSpeedRange(minSpeed, maxSpeed float64) {
 	if minSpeed <= 0.0 { panic("minSpeed must be strictly positive") }
 	if maxSpeed < minSpeed { panic("maxSpeed must be >= than minSpeed") }
 	self.minSpeed, self.maxSpeed = minSpeed, maxSpeed
 }
 
-// Same idea as [Bezier.SetMaxMotionRange](). Defaults to 0.0225.
-func (self *Quake) SetMaxMotionRange(axisRatio float64) {
-	if axisRatio <= 0.0 { panic("axisRatio must be strictly positive") }
-	self.axisRatio = axisRatio
+// To preserve resolution independence, shakers often simulate the
+// shaking within a [-0.5, 0.5] space and only later scale it. For
+// example, if you have a resolution of 32x32 and set a motion
+// scale of 0.25, the shaking will range within [-4, +4] in both
+// axes.
+// 
+// Defaults to 0.0225.
+func (self *Quake) SetMotionScale(axisScalingFactor float64) {
+	if axisScalingFactor <= 0.0 { panic("axisScalingFactor must be strictly positive") }
+	self.axisRatio = axisScalingFactor
 }
 
-// Same idea as [Bezier.SetZoomCompensated](). Defaults to 0.
+// The range of motion of most shakers is based on the logical
+// resolution of the game. This means that when zooming in or
+// out, the shaking effect will become more or less pronounced,
+// respectively. If you want the shaking to maintain the same
+// relative magnitude regardless of zoom level, change the zoom
+// compensation from 0 (the default) to 1.
 func (self *Quake) SetZoomCompensation(compensation float64) {
 	if compensation < 0 || compensation > 1.0 {
 		panic("zoom compensation factor must be in [0, 1]")
