@@ -37,8 +37,13 @@ func toRGBAf32(clr color.Color) (r, g, b, a float32) {
 // --- interpolation ---
 
 func TAt(x, a, b float64) float64 {
-	if x <= a { return 0.0 }
-	if x >= b { return 1.0 }
+	if a < b {
+		if x <  a { return 0.0 }
+		if x >= b { return 1.0 }
+	} else {
+		if x <  b { return 1.0 }
+		if x >= a { return 0.0 }
+	}
 	return (x - a)/(b - a)
 }
 

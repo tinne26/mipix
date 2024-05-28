@@ -4,16 +4,38 @@ import "math/rand/v2"
 
 import "github.com/tinne26/mipix/internal"
 
+var _ Shaker = (*Random)(nil)
+
 // Very basic implementation of a [Shaker] using random values.
+//
+// This shaker is not particularly nice; good screen shakes
+// generally try to create a continuous movement, avoiding
+// sharp direction changes and so on. Random is cheap (still
+// classic and effective, though).
+//
+// The implementation is tick-rate independent.
 type Random struct {
 	fromX, fromY float64
 	toX, toY float64
-	ticksElapsed uint64
 	
-	ptpTicks uint64
+	elapsed float64
+	travelTime float64
 	axisRatio float64
 	zoomCompensated bool
 	initialized bool
+}
+
+func (self *Random) ensureInitialized() {
+	if !self.initialized {
+		self.rollNewTarget()
+		if self.axisRatio == 0.0 {
+			self.axisRatio = 0.02
+		}
+		if self.travelTime == 0 {
+			self.travelTime = 0.03
+		}
+		self.initialized = true
+	}
 }
 
 // Sets the maximum travel distance between shake points, as
@@ -23,13 +45,12 @@ type Random struct {
 // a maximum shake of 0.25, the shake will range within [-8,
 // +8] for both axes.
 //
-// Reasonable values range from 0.05 to 0.3. Values <= 0.0
-// will be silently discarded and the default of 0.15 will
+// Reasonable values range from 0.005 to 0.3. Values <= 0.0
+// will be silently discarded and the default of 0.02 will
 // be restored.
 func (self *Random) SetMaxMotionRange(axisRatio float64) {
 	if axisRatio <= 0.0 {
-		self.axisRatio = 0.0
-		self.ensureInitialized()
+		self.axisRatio = 0.02
 	} else {
 		self.axisRatio = axisRatio
 	}
@@ -45,25 +66,30 @@ func (self *Random) SetZoomCompensated(compensated bool) {
 	self.zoomCompensated = compensated
 }
 
-// Sets the number of ticks the shaker takes to go from one randomly
-// rolled point to the next. At 60TPS, reasonable values range from
-// 3 to 30 (or 12 to 120 at 240TPS). Zero is not allowed.
-func (self *Random) SetPointToPointTicks(ticks TicksDuration) {
-	if ticks == 0 { panic("ticks must be > 0") }
-	self.ptpTicks = uint64(ticks)
+// Change the travel time between generated shake points. Defaults to 0.1.
+func (self *Random) SetTravelTime(travelTime float64) {
+	if travelTime <= 0 { panic("travel time must be strictly positive") }
+	self.travelTime = travelTime
 }
 
 // Implements the [Shaker] interface.
 func (self *Random) GetShakeOffsets(level float64) (float64, float64) {
 	self.ensureInitialized()
-	t := float64(self.ticksElapsed)/float64(self.ptpTicks)
+	if level == 0.0 {
+		self.elapsed = 0.0
+		self.rollNewTarget()
+		self.fromX, self.fromY = 0.0, 0.0
+		return 0.0, 0.0
+	}
+
+	t := self.elapsed/self.travelTime
 	x := internal.QuadInOutInterp(self.fromX, self.toX, t)
 	y := internal.QuadInOutInterp(self.fromY, self.toY, t)
-	self.ticksElapsed += internal.GetTPU()
-	if self.ticksElapsed >= self.ptpTicks {
+	self.elapsed += 1.0/float64(internal.GetUPS())
+	if self.elapsed >= self.travelTime {
 		self.rollNewTarget()
-		for self.ticksElapsed >= self.ptpTicks {
-			self.ticksElapsed -= self.ptpTicks
+		for self.elapsed >= self.travelTime {
+			self.elapsed -= self.travelTime
 		}
 	} 
 
@@ -77,20 +103,6 @@ func (self *Random) GetShakeOffsets(level float64) (float64, float64) {
 	}
 	if level == 1.0 { return x, y }
 	return internal.CubicSmoothstepInterp(0, x, level), internal.CubicSmoothstepInterp(0, y, level)
-}
-
-func (self *Random) ensureInitialized() {
-	if !self.initialized {
-		self.rollNewTarget()
-		if self.axisRatio == 0.0 {
-			self.axisRatio = 0.02
-		}
-		if self.ptpTicks == 0 {
-			ticksPerSecond := float64(internal.GetTPU()*uint64(internal.GetUPS()))
-			self.ptpTicks = max(uint64(ticksPerSecond*0.01), 1)
-		}
-		self.initialized = true
-	}
 }
 
 func (self *Random) rollNewTarget() {

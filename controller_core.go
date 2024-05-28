@@ -35,6 +35,7 @@ type controller struct {
 	redrawManaged bool
 	needsRedraw bool
 	needsClear bool
+	shakeWasActive bool
 	stretchingEnabled bool
 	scalingFilter ScalingFilter
 	
@@ -152,7 +153,6 @@ func (self *controller) getLogicalCanvas() *ebiten.Image {
 	height := self.cameraArea.Dy()
 
 	if self.reusableCanvas == nil {
-		// TODO: camera area is not ready sometimes? what?
 		self.reusableCanvas = ebiten.NewImage(width, height)
 		return self.reusableCanvas
 	} else {

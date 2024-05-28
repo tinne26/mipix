@@ -5,7 +5,7 @@
 // All provided implementations respect a few properties:
 //  - Resolution independent: range of motion for the tracking
 //    is not hardcoded, but proportional to the game's resolution.
-//  - Update-rate independent: tracking preserves the same relative
+//  - Tick-rate independent: tracking preserves the same relative
 //    speed regardless of your Tick().UPS() and Tick().GetRate()
 //    values. See [ups-vs-tps] if you need more context.
 // These are nice properties to have for public implementations,

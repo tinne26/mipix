@@ -11,6 +11,8 @@ import "github.com/tinne26/mipix/internal"
 // it's more stable in general. Like, it's purely quadratic in/out
 // if we don't change targets mid-transition and there are enough
 // updates per second for the simulation to be accurate.
+//
+// The implementation is tick-rate independent.
 type Quadratic struct {
 	speed float64
 	acceleration float64 // absolute value, always positive, configurable

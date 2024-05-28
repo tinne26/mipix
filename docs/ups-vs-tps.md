@@ -1,14 +1,10 @@
 # UPS vs TPS
 
-The API for mipix exposes some methods like [`mipix.Tick().UPS()`](), [`mipix.Tick().TPS()`](), [`mipix.Tick().SetRate()`]() and [`mipix.Tick().GetRate()`](TODO) that might have you confused. What does all this mean?
+The API for mipix exposes some methods like [`mipix.Tick().UPS()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.UPS), [`mipix.Tick().TPS()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.TPS), [`mipix.Tick().SetRate()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.SetRate) and [`mipix.Tick().GetRate()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.GetRate) that might have you confused. What does all this mean?
 
----
-
-Ebitengine, unlike most game engines, uses a tick-based fixed timestep loop for updating game logic. If you are only familiar with "delta times" and this sounds strange to you, [tinne26/tps-vs-fps](https://github.com/tinne26/tps-vs-fps) explains the topic in more detail.
-
-The rest of this document assumes you understand the TPS model.
-
----
+> Ebitengine, unlike most game engines, uses a tick-based fixed timestep loop for updating game logic. If you are only familiar with "delta times" and this sounds strange to you, [tinne26/tps-vs-fps](https://github.com/tinne26/tps-vs-fps) explains the topic in more detail.
+>
+> The rest of this document assumes you understand the TPS model.
 
 UPS stands for "updates per second". Instead of a fixed timestep loop with *ticks*, where one tick corresponds to one update, mipix uses a slightly more sophisticated system where you still use a fixed timestep loop with N updates per second, but each update might simulate *more than one tick*.
 
@@ -35,13 +31,15 @@ The 240 internal tick rate is a good recommendation, because it makes sense for 
 
 ## Tick-rate independent and update-rate independent
 
-In mipix, there are multiple functions that use ticks for transitions. For example, shakes can have fade ins and fade outs that are measured in ticks. The reason to stick to ticks instead of delta times is what was already laid out on [tinne26/tps-vs-fps](https://github.com/tinne26/tps-vs-fps): determinism and simplicity. I don't have anything against delta times, but they go against the Ebitengine ethos.
+In mipix, there are multiple functions that use ticks for transitions. For example, shakes can have fade ins and fade outs that are measured in ticks. The reason to stick to ticks instead of delta times is what was already laid out on [tinne26/tps-vs-fps](https://github.com/tinne26/tps-vs-fps): determinism and simplicity. I don't have anything against delta times, but they go against Ebitengine's ethos.
 
 Well, it's all a lie. Plenty of mipix interface implementations are based on times instead of ticks.
 
 Many interface implementations in mipix mention being tick-rate independent or update-rate independent:
-- Tick-rate independent means no matter what tick rate or UPS you set, the result will be perceptually the same. This is usually guaranteed with default [`Tracker`](TODO) implementations. This is generally only recommended for visuals, not game logic.
-- Update-rate independent is a less strict promise, as changing the total amount of ticks per second will change the results too. This is used with [`Shaker`](TODO) and [`Zoomer`](), as they use tick-based transitions.
+- Tick-rate independent means that no matter what tick rate or UPS you set, the result will be perceptually the same. This is usually guaranteed with default [`Tracker`](https://pkg.go.dev/github.com/tinne26/mipix/tracker#Tracker) implementations. This is generally only recommended for visuals, not game logic.
+- Update-rate independent is a less strict promise, as changing the total amount of ticks per second will change the results too. This is used with [`Shaker`](https://pkg.go.dev/github.com/tinne26/mipix/shaker#Shaker) and [`Zoomer`](https://pkg.go.dev/github.com/tinne26/mipix/zoomer#Zoomer), as they use tick-based transitions.
+
+> Caution: in practice, the precision of many algorithms depends on the number of iterations it simulates. For very high simulation rates, results would typically converge with a high degree of accuracy, but... if you use 30UPS, some things might not go so smoothly. It's always advisable to test all your configurations.
 
 ## Summary and conclusions
 

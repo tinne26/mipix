@@ -106,21 +106,33 @@ func (self *controller) cameraGetInternalZoomer() zoomer.Zoomer {
 }
 
 func (self *controller) updateShake() {
-	if !self.cameraIsShaking() { return }
-	var camShaker shaker.Shaker = self.shaker
-	if camShaker == nil {
-		if defaultShaker == nil {
-			defaultShaker = &shaker.Random{}
+	if self.cameraIsShaking() {
+		self.shakeWasActive = true
+		activity := self.getShakeActivity()
+		shakeX, shakeY := self.getShaker().GetShakeOffsets(activity)
+		self.shakeElapsed += TicksDuration(self.tickRate)
+		if self.redrawManaged && (shakeX != self.shakeOffsetX || shakeY != self.shakeOffsetY) {
+			self.needsRedraw = true
 		}
-		camShaker = defaultShaker
+		self.shakeOffsetX, self.shakeOffsetY = shakeX, shakeY
+	} else {
+		if self.shakeWasActive {
+			self.getShaker().GetShakeOffsets(0.0) // termination call
+			if self.shakeOffsetX != 0.0 || self.shakeOffsetY != 0.0 {
+				self.shakeOffsetX, self.shakeOffsetY = 0.0, 0.0
+				self.needsRedraw = true
+			}
+		}
+		self.shakeWasActive = false
 	}
-	activity := self.getShakeActivity()
-	shakeX, shakeY := camShaker.GetShakeOffsets(activity)
-	self.shakeElapsed += TicksDuration(self.tickRate)
-	if self.redrawManaged && (shakeX != self.shakeOffsetX || shakeY != self.shakeOffsetY) {
-		self.needsRedraw = true
+}
+
+func (self *controller) getShaker() shaker.Shaker {
+	if self.shaker != nil { return self.shaker }
+	if defaultShaker == nil {
+		defaultShaker = &shaker.Random{}
 	}
-	self.shakeOffsetX, self.shakeOffsetY = shakeX, shakeY
+	return defaultShaker
 }
 
 func (self *controller) cameraZoom(newZoomLevel float64) {
