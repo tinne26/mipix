@@ -2,6 +2,7 @@
 
 The API for mipix exposes some methods like [`mipix.Tick().UPS()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.UPS), [`mipix.Tick().TPS()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.TPS), [`mipix.Tick().SetRate()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.SetRate) and [`mipix.Tick().GetRate()`](https://pkg.go.dev/github.com/tinne26/mipix#AccessorTick.GetRate) that might have you confused. What does all this mean?
 
+> [!IMPORTANT]
 > Ebitengine, unlike most game engines, uses a tick-based fixed timestep loop for updating game logic. If you are only familiar with "delta times" and this sounds strange to you, [tinne26/tps-vs-fps](https://github.com/tinne26/tps-vs-fps) explains the topic in more detail.
 >
 > The rest of this document assumes you understand the TPS model.
@@ -12,7 +13,8 @@ The default `ebiten.TPS() == 60`, in this model, corresponds to `UPS() == 60` an
 
 The reason for this model to exist is to *better support high-refresh display rates and/or reduce input latency*, but without forcing the user to run the game at a higher simulation rate if they don't want to.
 
-> Disclaimer: *not all games are a good match for higher refresh rates*. You might have a very pure pixel art game with animations that only run at 8 frames per second, all in sync. Trying to artificially support high refresh rate displays in this case would be silly. This document explains a feature that's interesting for *most games*, but not all of them. Use your common sense before joining the feature hype train and all that.
+> [!NOTE]
+> Not all games are a *good match for higher refresh rates*. You might have a very pure pixel art game with animations that only run at 8 frames per second, all in sync. Trying to artificially support high refresh rate displays in this case would be silly. This document explains a feature that's interesting for *most games*, but not all of them. Use your common sense before joining the feature hype train and all that.
 
 As you know, many modern displays can run at 120Hz, 144Hz or 240Hz. We call these "high refresh rate displays". If we want to support these on Ebitengine, we have a couple options:
 - Interpolate positions smoothly between the current and previous updates. This is not always so simple to do and will often introduce extra latency.
@@ -39,7 +41,8 @@ Many interface implementations in mipix mention being tick-rate independent or u
 - Tick-rate independent means that no matter what tick rate or UPS you set, the result will be perceptually the same. This is usually guaranteed with default [`Tracker`](https://pkg.go.dev/github.com/tinne26/mipix/tracker#Tracker) implementations. This is generally only recommended for visuals, not game logic.
 - Update-rate independent is a less strict promise, as changing the total amount of ticks per second will change the results too. This is used with [`Shaker`](https://pkg.go.dev/github.com/tinne26/mipix/shaker#Shaker) and [`Zoomer`](https://pkg.go.dev/github.com/tinne26/mipix/zoomer#Zoomer), as they use tick-based transitions.
 
-> Caution: in practice, the precision of many algorithms depends on the number of iterations it simulates. For very high simulation rates, results would typically converge with a high degree of accuracy, but... if you use 30UPS, some things might not go so smoothly. It's always advisable to test all your configurations.
+> [!CAUTION]
+> In practice, the precision of many algorithms depends on the number of iterations it simulates. For very high simulation rates, results would typically converge with a high degree of accuracy, but... if you use 30UPS, some things might not go so smoothly. It's always advisable to test all your configurations.
 
 ## Summary and conclusions
 
