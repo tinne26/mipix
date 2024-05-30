@@ -2,8 +2,6 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/tinne26/mipix.svg)](https://pkg.go.dev/github.com/tinne26/mipix)
 
-**WIP: EARLY DEVELOPMENT STAGES**
-
 A package to assist the development of Ebitengine pixel art games.
 
 This package allows you to implement your game working with logical canvases and ignoring `Game.Layout()` completely. Scaling is managed internally with pixel art aware scaling algorithms, and support for camera movement, zoom and screen shakes are also available through the API.
@@ -29,7 +27,3 @@ While side scrollers can be implemented with this model, that's probably not ide
 
 I haven't written examples oriented to end users yet, the only examples available are a bit overkill as they were designed to help me debug and test features. See https://github.com/tinne26/mipix-examples.
 
-## WIP status
-
-- Missing features: probably a couple window size management functions (though we ideally need [ebiten/issues/2978](https://github.com/hajimehoshi/ebiten/issues/2978) resolved first), maybe `HiRes().Project()`, maaaaybe `HiRes().DrawTriangles()`, or some form of `DrawEachAt(...)`..? I'm surprisingly happy with the feature set at the moment, to be honest.
-- Annoyances: practically speaking, drawing UI on top of mipix is a bit annoying. Ideally, you would use bitmap fonts and a bitmap font renderer, but no good solution exists for this yet. I'm working on it on a separate project, though, so hopefully someday...

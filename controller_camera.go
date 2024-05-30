@@ -47,10 +47,10 @@ func (self *controller) cameraNotifyCoordinates(x, y float64) {
 func (self *controller) cameraResetCoordinates(x, y float64) {
 	if self.inDraw { panic("can't reset camera coordinates during draw stage") }
 	self.trackerTargetX , self.trackerTargetY  = x, y
+	self.trackerCurrentX, self.trackerCurrentY = x, y
 	if self.redrawManaged && (x != self.trackerCurrentX || y != self.trackerCurrentY) {
 		self.needsRedraw = true
 	}
-	self.trackerCurrentX, self.trackerCurrentY = x, y
 	self.updateCameraArea()
 }
 
@@ -64,19 +64,31 @@ func (self *controller) cameraFlushCoordinates() {
 }
 
 func (self *controller) updateTracking() {
-	var camTracker tracker.Tracker = self.tracker
-	if camTracker == nil { camTracker = tracker.LinearTracker }
-	self.trackerPrevSpeedX, self.trackerPrevSpeedY = camTracker.Update(
+	camTracker := self.cameraGetInternalTracker()
+	changeX, changeY := camTracker.Update(
 		self.trackerCurrentX, self.trackerCurrentY,
 		self.trackerTargetX, self.trackerTargetY,
 		self.trackerPrevSpeedX, self.trackerPrevSpeedY,
 	)
-	self.trackerCurrentX += self.trackerPrevSpeedX
-	self.trackerCurrentY += self.trackerPrevSpeedY
+	self.trackerCurrentX += changeX
+	self.trackerCurrentY += changeY
+	updateDelta := 1.0/float64(Tick().UPS())
+	self.trackerPrevSpeedX = changeX/updateDelta
+	self.trackerPrevSpeedY = changeY/updateDelta
 	
 	if self.redrawManaged && (self.trackerPrevSpeedX != 0 || self.trackerPrevSpeedY != 0) {
 		self.needsRedraw = true
 	}
+}
+
+func (self *controller) cameraGetInternalTracker() tracker.Tracker {
+	if self.tracker != nil { return self.tracker }
+	if defaultTracker == nil {
+		defaultTracker = &tracker.SpringTailer{}
+		defaultTracker.Spring.SetParameters(0.8, 2.4)
+		defaultTracker.SetCatchUpParameters(0.9, 1.75)
+	}
+	return defaultTracker
 }
 
 // --- zoom ---
@@ -109,7 +121,7 @@ func (self *controller) updateShake() {
 	if self.cameraIsShaking() {
 		self.shakeWasActive = true
 		activity := self.getShakeActivity()
-		shakeX, shakeY := self.getShaker().GetShakeOffsets(activity)
+		shakeX, shakeY := self.cameraGetInternalShaker().GetShakeOffsets(activity)
 		self.shakeElapsed += TicksDuration(self.tickRate)
 		if self.redrawManaged && (shakeX != self.shakeOffsetX || shakeY != self.shakeOffsetY) {
 			self.needsRedraw = true
@@ -117,7 +129,7 @@ func (self *controller) updateShake() {
 		self.shakeOffsetX, self.shakeOffsetY = shakeX, shakeY
 	} else {
 		if self.shakeWasActive {
-			self.getShaker().GetShakeOffsets(0.0) // termination call
+			self.cameraGetInternalShaker().GetShakeOffsets(0.0) // termination call
 			if self.shakeOffsetX != 0.0 || self.shakeOffsetY != 0.0 {
 				self.shakeOffsetX, self.shakeOffsetY = 0.0, 0.0
 				self.needsRedraw = true
@@ -127,7 +139,7 @@ func (self *controller) updateShake() {
 	}
 }
 
-func (self *controller) getShaker() shaker.Shaker {
+func (self *controller) cameraGetInternalShaker() shaker.Shaker {
 	if self.shaker != nil { return self.shaker }
 	if defaultShaker == nil {
 		defaultShaker = &shaker.Random{}

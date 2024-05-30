@@ -46,7 +46,7 @@ func (self *controller) debugDrawAll(target *ebiten.Image) {
 		currWidth, currHeight := self.debugOffscreen.Size()
 		if currWidth != offWidth || currHeight != offHeight {
 			self.debugOffscreen = NewOffscreen(offWidth, offHeight)
-		} else { // TODO: unless skip draw
+		} else { // (unless skip draw, but debug is only called if needsRedraw)
 			self.debugOffscreen.Clear()
 		}
 	}

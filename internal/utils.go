@@ -22,6 +22,7 @@ func Abs[T float64 | float32 | int | int8 | int16 | int32 | int64](x T) T {
 	return -x
 }
 
+// It doesn't take zero into account, but this is intentional.
 func Sign[T float64 | float32 | int | int8 | int16 | int32 | int64](x T) T {
 	if x >= 0 { return +1 }
 	return -1

@@ -24,13 +24,3 @@ func RollPointWithinEllipse(width, height float64) (float64, float64) {
 	y *= EaseOutQuad(rand.Float64())
 	return x, y
 }
-
-// (x/a)^2 + (y/b)^2 = 1
-// tan(φ) * startPoint_X + n = startPoint_Y
-
-// ellipse equation: (x/horzAxisLength)^2+(y/vertAxisLength)^2 = 1
-// just intersect with line equation and solve the system.
-// so, just make a simple function that returns the value given
-// axis lengths and angle. you first find the intersection point
-// and then use a^2 + b^2 = h^2.
-// with bézier conic curves, sliding 2/3 points and rng angles
